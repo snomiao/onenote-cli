@@ -126,7 +126,7 @@ function extractTextBlocks(buf: Buffer): { offset: number; text: string }[] {
   // Filter noise: require blocks to have a reasonable ratio of common characters
   return blocks.filter((b) => {
     const common = b.text.replace(
-      /[^a-zA-Z0-9\u3040-\u30ff\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\s.,;:!?@#\-_()[\]{}'"\/\\]/g,
+      /[^a-zA-Z0-9\u3040-\u30ff\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\s.,;:!?@#\-_()[\]{}'"/\\]/g,
       ""
     );
     if (common.length / b.text.length <= 0.6 || b.text.length < 4) return false;
@@ -228,7 +228,7 @@ export function extractPageGuids(
       // Filter out garbage titles: must contain a meaningful ratio of "real" characters
       // (ASCII letters/digits, common CJK ideographs, hiragana/katakana, punctuation)
       const meaningful = chars.replace(
-        /[^a-zA-Z0-9\u3040-\u30ff\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\s.,;:!?@#\-_()[\]{}'"\/\\]/g,
+        /[^a-zA-Z0-9\u3040-\u30ff\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\s.,;:!?@#\-_()[\]{}'"/\\]/g,
         ""
       );
       if (meaningful.length / chars.length < 0.7) continue;

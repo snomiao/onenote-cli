@@ -147,7 +147,7 @@ export async function getAccessToken(): Promise<string> {
     },
   };
 
-  const result: AuthenticationResult = await pca.acquireTokenByDeviceCode(request);
+  const result = await pca.acquireTokenByDeviceCode(request);
   if (!result) {
     throw new Error("Authentication failed");
   }
