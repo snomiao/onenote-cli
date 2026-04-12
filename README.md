@@ -22,6 +22,12 @@ cd onenote-cli
 bun install
 ```
 
+### As a Claude Code Skill
+
+```bash
+npx skills add snomiao/onenote-cli
+```
+
 ## Setup
 
 1. Register an Azure AD app at [entra.microsoft.com](https://entra.microsoft.com) (see [docs/setup.md](docs/setup.md) for full walkthrough)
