@@ -1,6 +1,6 @@
 ---
 name: onenote-cli
-description: Search and operate Microsoft OneNote from the command line via Microsoft Graph API. Use when the user wants to search OneNote notes, list notebooks, read pages, or manage OneNote content.
+description: Make your OneNote notebooks survive in the age of AI. Search and operate OneNote from CLI via Microsoft Graph API. Use when the user wants to search OneNote notes, list notebooks, read pages, or manage OneNote content.
 ---
 
 # onenote-cli

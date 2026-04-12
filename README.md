@@ -1,8 +1,8 @@
 # onenote-cli
 
-A command-line tool for Microsoft OneNote built with Bun, yargs, and Microsoft Graph API.
+**Make your OneNote notebooks survive in the age of AI.**
 
-**Full-text search across all your OneNote pages with page-level deep links** — even on accounts with 5,000+ items that break the Graph API.
+A CLI that lets AI agents (and humans) search, read, and operate your OneNote — with full-text page-level search and deep links that open directly to the matching page.
 
 ## Features
 
