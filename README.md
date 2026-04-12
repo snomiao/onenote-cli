@@ -22,9 +22,10 @@ cd onenote-cli
 bun install
 ```
 
-### As a Claude Code Skill
+### As an AI Agent Skill
 
 ```bash
+# Claude Code / OpenClaw / Codex / Cursor / any SKILL.md-compatible agent
 npx skills add snomiao/onenote-cli
 ```
 
