@@ -16,17 +16,19 @@ A CLI that lets AI agents (and humans) search, read, and operate your OneNote â€
 
 ## Install
 
-```bash
-git clone https://github.com/snomiao/onenote-cli.git
-cd onenote-cli
-bun install
-```
-
 ### As an AI Agent Skill
 
 ```bash
 # Claude Code / OpenClaw / Codex / Cursor / any SKILL.md-compatible agent
 npx skills add snomiao/onenote-cli
+```
+
+### Manual
+
+```bash
+git clone https://github.com/snomiao/onenote-cli.git
+cd onenote-cli
+bun install
 ```
 
 ## Setup
