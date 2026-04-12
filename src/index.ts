@@ -277,7 +277,7 @@ yargs(hideBin(process.argv))
       // Clean snippet text: remove binary noise characters
       const cleanSnippet = (s: string) =>
         s.replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
-          .replace(/[^\x20-\x7E\u00A0-\u024F\u0370-\u058F\u0600-\u06FF\u3000-\u30FF\u3400-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF\s.,;:!?@#\-_()[\]{}'"\/\\=+<>|~`^&*%$\u2000-\u206F]/g, "")
+          .replace(/[^\x20-\x7E\u00A0-\u024F\u0370-\u058F\u0600-\u06FF\u3000-\u30FF\u3400-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF\s.,;:!?@#\-_()[\]{}'"/\\=+<>|~`^&*%$\u2000-\u206F]/g, "")
           .replace(/\s{2,}/g, " ")
           .trim();
 
