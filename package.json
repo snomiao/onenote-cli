@@ -1,0 +1,22 @@
+{
+  "name": "onenote-cli",
+  "version": "0.1.0",
+  "description": "CLI tool to operate Microsoft OneNote via Graph API",
+  "type": "module",
+  "bin": {
+    "onenote-cli": "./src/index.ts",
+    "onenote": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^2.16.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/yargs": "^17.0.33",
+    "typescript": "^5.7.0"
+  },
+  "license": "MIT"
+}
