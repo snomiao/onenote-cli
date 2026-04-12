@@ -15,9 +15,9 @@ const cyan = (s: string) => (isTTY ? `\x1b[36m${s}\x1b[0m` : s);
 const green = (s: string) => (isTTY ? `\x1b[32m${s}\x1b[0m` : s);
 const magenta = (s: string) => (isTTY ? `\x1b[35m${s}\x1b[0m` : s);
 
-// OSC 8 hyperlink (clickable text in supported terminals)
+// OSC 8 hyperlink (clickable in supported terminals), markdown in non-TTY
 function link(url: string, text: string): string {
-  if (!isTTY) return `${text}\n  ${url}`;
+  if (!isTTY) return `[${text}](${url})`;
   return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
 }
 
@@ -274,22 +274,36 @@ yargs(hideBin(process.argv))
         console.log("No results found.");
         return;
       }
+      // Clean snippet text: remove binary noise characters
+      const cleanSnippet = (s: string) =>
+        s.replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
+          .replace(/[^\x20-\x7E\u00A0-\u024F\u0370-\u058F\u0600-\u06FF\u3000-\u30FF\u3400-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF\s.,;:!?@#\-_()[\]{}'"\/\\=+<>|~`^&*%$\u2000-\u206F]/g, "")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+
       const lowerQuery = query.toLowerCase();
       for (const r of results) {
-        // Title as clickable hyperlink in TTY, or title + URL in plain mode
-        const title = r.webUrl ? link(r.webUrl, bold(cyan(r.title))) : bold(r.title);
-        console.log(title);
+        // Skip results with garbage/attachment titles
+        if (/^\.[a-z0-9]{2,5}$/i.test(r.title.trim())) continue;
+        const printable = r.title.replace(/[^\x20-\x7E\u3000-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF\u00A0-\u024F]/g, "");
+        if (printable.length < 3 || printable.length / r.title.length < 0.4) continue;
+
+        // Title as clickable hyperlink (OSC 8 in TTY, markdown in non-TTY)
+        const displayTitle = r.webUrl ? link(r.webUrl, bold(cyan(r.title))) : bold(r.title);
+        console.log(displayTitle);
         console.log(`  ${dim(r.section)} ${dim("|")} ${dim(r.notebook)}`);
+
         // Show context around the match with highlighted keyword
-        const idx = r.body.toLowerCase().indexOf(lowerQuery);
+        const body = cleanSnippet(r.body);
+        const idx = body.toLowerCase().indexOf(lowerQuery);
         if (idx >= 0) {
           const start = Math.max(0, idx - 40);
-          const end = Math.min(r.body.length, idx + query.length + 80);
-          const before = r.body.slice(start, idx);
-          const match = r.body.slice(idx, idx + query.length);
-          const after = r.body.slice(idx + query.length, end);
-          const snippet = (start > 0 ? "..." : "") + before + yellow(bold(match)) + after + (end < r.body.length ? "..." : "");
-          console.log(`  ${snippet.replace(/\n/g, " ")}`);
+          const end = Math.min(body.length, idx + query.length + 80);
+          const before = body.slice(start, idx);
+          const match = body.slice(idx, idx + query.length);
+          const after = body.slice(idx + query.length, end);
+          const snippet = (start > 0 ? "..." : "") + before + yellow(bold(match)) + after + (end < body.length ? "..." : "");
+          console.log(`  ${snippet}`);
         }
         console.log();
       }
