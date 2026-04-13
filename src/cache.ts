@@ -404,7 +404,7 @@ function pageGuidFromWebUrl(webUrl: string): string | null {
 
 async function listSectionFiles(
   notebook: any
-): Promise<{ name: string; drivePath: string }[]> {
+): Promise<{ name: string; drivePath: string; lastModified: string; size: number }[]> {
   const nbPath = getNotebookDrivePath(notebook);
   if (!nbPath) return [];
   const encoded = nbPath
@@ -413,7 +413,7 @@ async function listSectionFiles(
     .join("/");
   try {
     const res = await graphFetchRaw(
-      `/me/drive/root:/${encoded}:/children?$select=name,id,file,size&$top=200`
+      `/me/drive/root:/${encoded}:/children?$select=name,id,file,size,lastModifiedDateTime&$top=200`
     );
     if (!res.ok) return [];
     const data = (await res.json()) as any;
@@ -422,6 +422,8 @@ async function listSectionFiles(
       .map((f: any) => ({
         name: f.name.replace(/\.one$/, ""),
         drivePath: `${nbPath}/${f.name}`,
+        lastModified: f.lastModifiedDateTime ?? "",
+        size: f.size ?? 0,
       }));
   } catch {
     return [];
@@ -437,29 +439,46 @@ export async function syncCache(
   const notebooks = await listNotebooks();
   log(`Found ${notebooks.length} notebooks`);
 
+  // Collect all sections across notebooks for progress tracking
+  const allSections: { nb: any; sec: any; nbDir: string; cachePath: string }[] = [];
   for (const nb of notebooks) {
     const nbDir = join(CACHE_DIR, nb.displayName);
     await ensureDir(nbDir);
-
     const sections = await listSectionFiles(nb);
-    log(`  ${nb.displayName}: ${sections.length} sections`);
-
     for (const sec of sections) {
-      const cachePath = join(nbDir, `${sec.name}.json`);
+      allSections.push({ nb, sec, nbDir, cachePath: join(nbDir, `${sec.name}.json`) });
+    }
+  }
 
-      // Check if cache exists and is recent (< 1 hour)
+  let downloaded = 0;
+  let skipped = 0;
+  const total = allSections.length;
+  log(`${total} sections across ${notebooks.length} notebooks`);
+
+  for (const { nb, sec, nbDir, cachePath } of allSections) {
+      // Incremental sync: skip if cache is fresh AND source hasn't changed
       try {
-        const s = await stat(cachePath);
-        const age = Date.now() - s.mtimeMs;
-        if (age < 3600_000) continue;
-      } catch {}
+        const raw = await readFile(cachePath, "utf-8");
+        const cached = JSON.parse(raw);
+        // If cache has a lastModified field, compare with OneDrive's lastModifiedDateTime
+        if (cached.lastModified && sec.lastModified && cached.lastModified >= sec.lastModified) {
+          skipped++;
+          continue;
+        }
+      } catch {
+        // No cache or unreadable — download
+      }
 
-      log(`    [downloading] ${sec.name}...`);
+      const progress = `[${downloaded + skipped + 1}/${total}]`;
+      const sizeStr = sec.size ? ` (${(sec.size / 1024).toFixed(0)}KB)` : "";
+      log(`  ${progress} ${nb.displayName}/${sec.name}${sizeStr}`);
       const buf = await downloadSection(sec.drivePath);
       if (!buf) {
         log(`    [failed] ${sec.name}`);
+        skipped++;
         continue;
       }
+      downloaded++;
 
       const pages = extractPages(buf);
       const guidEntries = extractPageGuids(buf).sort((a, b) => a.offset - b.offset);
@@ -486,6 +505,7 @@ export async function syncCache(
         section: sec.name,
         notebook: nb.displayName,
         webUrl,
+        lastModified: sec.lastModified,
         pages: pages.map((p: any) => ({
           title: p.title,
           body: p.body,
@@ -511,9 +531,8 @@ export async function syncCache(
 
       await writeFile(cachePath, JSON.stringify(cacheData));
       log(`    [ok] ${sec.name} (${pages.length} pages)`);
-    }
   }
-  log("Sync complete.");
+  log(`Sync complete. ${downloaded} downloaded, ${skipped} up-to-date.`);
 }
 
 /**
