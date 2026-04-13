@@ -266,103 +266,162 @@ export async function searchPages(query: string) {
 // --- Read page by URL ---
 
 /**
- * Parse a OneNote Online URL to extract section GUID and page GUID.
- * Supports both formats:
- *   - Doc.aspx?sourcedoc={sectionGuid}&wd=target(...|{pageGuid}/)
- *   - Documents/Notebooks/{nb}?wd=target({section}.one|{sectionGroupGuid}/{title}|{pageGuid}/)
+ * Parse a OneNote Online URL to determine type and extract GUIDs.
  */
-function parseOneNoteUrl(url: string): { sectionGuid?: string; pageGuid?: string } {
+function parseOneNoteUrl(url: string): {
+  type: "page" | "section" | "notebook" | "unknown";
+  sectionGuid?: string;
+  pageGuid?: string;
+  notebookId?: string;
+} {
   const decoded = decodeURIComponent(url);
-  // Extract all GUIDs from URL
   const guids = decoded.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? [];
 
   // sourcedoc GUID (section)
   const sourcedocMatch = decoded.match(/sourcedoc=\{?([0-9a-f-]+)\}?/i);
   const sectionGuid = sourcedocMatch?.[1]?.toLowerCase();
 
-  // Page GUID is the LAST GUID in the URL (after the title in wd=target)
-  const pageGuid = guids.length > 0 ? guids[guids.length - 1].toLowerCase() : undefined;
+  // Check for wd=target (means section or page level)
+  const hasWdTarget = /wd=target/i.test(decoded);
 
-  return { sectionGuid, pageGuid };
+  // Page GUID is the LAST GUID in wd=target (after section group GUID + title)
+  const pageGuid = hasWdTarget && guids.length > 1
+    ? guids[guids.length - 1].toLowerCase()
+    : undefined;
+
+  // Detect notebook ID from URL path like /notebooks/1-{guid}
+  const nbMatch = decoded.match(/notebooks\/(1-[0-9a-f-]+)/i);
+  const notebookId = nbMatch?.[1];
+
+  if (pageGuid && sectionGuid) return { type: "page", sectionGuid, pageGuid };
+  if (sectionGuid) return { type: "section", sectionGuid };
+  if (notebookId) return { type: "notebook", notebookId };
+  if (sectionGuid) return { type: "section", sectionGuid };
+  return { type: "unknown" };
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**
- * Read page content given a OneNote URL from search results.
- * Returns { title, html, text } or throws.
+ * List pages in a section by its sourcedoc GUID.
+ * Returns array of { id, title, webUrl }.
  */
-export async function readPageByUrl(url: string): Promise<{
+export async function listSectionPagesByGuid(
+  sectionGuid: string
+): Promise<{ id: string; title: string; webUrl: string }[]> {
+  const res = await graphFetch(
+    `/me/onenote/sections/0-${sectionGuid}/pages?$select=id,title,links&$top=100`
+  );
+  const data: GraphResponse<any> = await res.json();
+  return (data.value ?? []).map((p: any) => ({
+    id: p.id,
+    title: p.title ?? "(untitled)",
+    webUrl: p.links?.oneNoteWebUrl?.href ?? "",
+  }));
+}
+
+/**
+ * Read a OneNote URL. Behavior depends on URL type:
+ * - Page URL → returns page content
+ * - Section URL → returns page list (tree view)
+ * - Notebook URL → returns section list
+ */
+export async function readOneNoteUrl(url: string): Promise<{
+  type: "page" | "section" | "notebook";
   title: string;
-  html: string;
-  text: string;
-  pageUrl: string;
+  content: string; // text content or tree view
+  html?: string;
+  pageUrl?: string;
 }> {
-  const { sectionGuid, pageGuid } = parseOneNoteUrl(url);
-  if (!sectionGuid && !pageGuid) {
-    throw new Error("Could not parse OneNote URL: no section or page GUID found");
-  }
+  const parsed = parseOneNoteUrl(url);
 
-  // Try to find the page via OneNote API using section GUID
-  if (sectionGuid) {
-    try {
-      const res = await graphFetch(
-        `/me/onenote/sections/0-${sectionGuid}/pages?$select=id,title,links&$top=100`
-      );
-      const data: GraphResponse<any> = await res.json();
-      const pages = data.value ?? [];
-
-      // Find matching page by GUID (compare against webUrl's last GUID)
-      let targetPage: any = null;
-      for (const page of pages) {
-        const webUrl = page.links?.oneNoteWebUrl?.href ?? "";
-        const urlDecoded = decodeURIComponent(webUrl);
-        const urlGuids = urlDecoded.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? [];
-        const lastGuid = urlGuids.length > 0 ? urlGuids[urlGuids.length - 1].toLowerCase() : "";
-        if (pageGuid && lastGuid === pageGuid) {
-          targetPage = page;
-          break;
-        }
+  // --- Page ---
+  if (parsed.type === "page" && parsed.sectionGuid) {
+    const pages = await listSectionPagesByGuid(parsed.sectionGuid);
+    // Find matching page by GUID
+    let targetPage: any = null;
+    for (const page of pages) {
+      const urlDecoded = decodeURIComponent(page.webUrl);
+      const urlGuids = urlDecoded.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? [];
+      const lastGuid = urlGuids.length > 0 ? urlGuids[urlGuids.length - 1].toLowerCase() : "";
+      if (parsed.pageGuid && lastGuid === parsed.pageGuid) {
+        targetPage = page;
+        break;
       }
-
-      // If no GUID match, take first page (section-level URL)
-      if (!targetPage && pages.length > 0) {
-        targetPage = pages[0];
-      }
-
-      if (targetPage) {
-        // Get page content as HTML
-        const contentRes = await graphFetch(`/me/onenote/pages/${targetPage.id}/content`);
-        const html = await contentRes.text();
-        // Simple HTML to text conversion
-        const text = html
-          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-          .replace(/<br\s*\/?>/gi, "\n")
-          .replace(/<\/p>/gi, "\n\n")
-          .replace(/<\/div>/gi, "\n")
-          .replace(/<\/h[1-6]>/gi, "\n\n")
-          .replace(/<\/li>/gi, "\n")
-          .replace(/<li[^>]*>/gi, "- ")
-          .replace(/<[^>]+>/g, "")
-          .replace(/&nbsp;/g, " ")
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/\n{3,}/g, "\n\n")
-          .trim();
-
-        return {
-          title: targetPage.title ?? "(untitled)",
-          html,
-          text,
-          pageUrl: targetPage.links?.oneNoteWebUrl?.href ?? url,
-        };
-      }
-    } catch {
-      // Fall through to error
+    }
+    if (!targetPage && pages.length > 0) targetPage = pages[0];
+    if (targetPage) {
+      const contentRes = await graphFetch(`/me/onenote/pages/${targetPage.id}/content`);
+      const html = await contentRes.text();
+      return {
+        type: "page",
+        title: targetPage.title,
+        content: htmlToText(html),
+        html,
+        pageUrl: targetPage.webUrl,
+      };
     }
   }
 
-  throw new Error("Could not find page content. The section may be inaccessible or the URL format is unsupported.");
+  // --- Section ---
+  if ((parsed.type === "section" || parsed.type === "page") && parsed.sectionGuid) {
+    const pages = await listSectionPagesByGuid(parsed.sectionGuid);
+    // Build tree view
+    const tree = pages.map((p, i) => `${i + 1}. ${p.title}`).join("\n");
+    // Get section name
+    let sectionName = "Section";
+    try {
+      const secRes = await graphFetch(`/me/onenote/sections/0-${parsed.sectionGuid}?$select=displayName`);
+      const sec = await secRes.json() as any;
+      sectionName = sec.displayName ?? sectionName;
+    } catch {}
+    return {
+      type: "section",
+      title: sectionName,
+      content: `${sectionName} (${pages.length} pages)\n\n${tree}`,
+    };
+  }
+
+  // --- Notebook ---
+  if (parsed.type === "notebook" && parsed.notebookId) {
+    try {
+      const nb = await getNotebook(parsed.notebookId);
+      const sections = await listSections(parsed.notebookId);
+      const tree = sections.map((s: any, i: number) => `${i + 1}. ${s.displayName ?? s.name ?? "(untitled)"}`).join("\n");
+      return {
+        type: "notebook",
+        title: nb.displayName ?? "Notebook",
+        content: `${nb.displayName} (${sections.length} sections)\n\n${tree}`,
+      };
+    } catch {
+      // Fall through
+    }
+  }
+
+  throw new Error("Could not parse URL or access content. Supported: page, section, or notebook URLs.");
+}
+
+// Keep backward compat
+export async function readPageByUrl(url: string) {
+  const result = await readOneNoteUrl(url);
+  return { title: result.title, html: result.html ?? "", text: result.content, pageUrl: result.pageUrl ?? url };
 }

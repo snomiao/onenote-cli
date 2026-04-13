@@ -227,21 +227,23 @@ yargs(hideBin(process.argv))
   // --- read ---
   .command(
     "read <url>",
-    "Read a OneNote page by its URL (from search results)",
+    "Read a OneNote page, section, or notebook by URL",
     (y) =>
       y
         .positional("url", { type: "string", demandOption: true })
         .option("html", { type: "boolean", describe: "Output raw HTML instead of text" }),
     async (argv) => {
       const url = (argv.url as string).replace(/^["']|["']$/g, "");
-      const result = await graph.readPageByUrl(url);
-      if (argv.html) {
+      const result = await graph.readOneNoteUrl(url);
+
+      if (argv.html && result.html) {
         console.log(result.html);
-      } else {
-        console.log(bold(cyan(result.title)));
-        console.log(dim("─".repeat(Math.min(result.title.length + 10, 60))));
-        console.log(result.text);
+        return;
       }
+
+      console.log(bold(cyan(result.title)));
+      console.log(dim("─".repeat(Math.min(result.title.length + 10, 60))));
+      console.log(result.content);
     }
   )
 
