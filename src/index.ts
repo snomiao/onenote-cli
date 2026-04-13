@@ -51,7 +51,7 @@ yargs(hideBin(process.argv))
     (yargs) =>
       yargs
         .command(
-          "list",
+          ["list", "ls"],
           "List all notebooks",
           () => {},
           async () => {
@@ -94,7 +94,7 @@ yargs(hideBin(process.argv))
     (yargs) =>
       yargs
         .command(
-          "list",
+          ["list", "ls"],
           "List sections",
           (y) => y.option("notebook-id", { type: "string", alias: "n", describe: "Filter by notebook ID" }),
           async (argv) => {
@@ -139,7 +139,7 @@ yargs(hideBin(process.argv))
     (yargs) =>
       yargs
         .command(
-          "list",
+          ["list", "ls"],
           "List section groups",
           (y) => y.option("notebook-id", { type: "string", alias: "n", describe: "Filter by notebook ID" }),
           async (argv) => {
@@ -162,7 +162,7 @@ yargs(hideBin(process.argv))
     (yargs) =>
       yargs
         .command(
-          "list",
+          ["list", "ls"],
           "List pages",
           (y) => y.option("section-id", { type: "string", alias: "s", describe: "Filter by section ID" }),
           async (argv) => {
@@ -419,7 +419,8 @@ yargs(hideBin(process.argv))
   .showHelpOnFail(true)
   .fail((msg, err, yargs) => {
     if (err) {
-      console.error("Error:", err.message);
+      yargs.showHelp();
+      console.error("\nError:", err.message);
       process.exit(1);
     }
     if (msg) {
