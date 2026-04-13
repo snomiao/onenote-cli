@@ -469,6 +469,14 @@ export async function syncCache(
         // No cache or unreadable — download
       }
 
+      // Skip sections larger than 200MB (too slow to download/parse)
+      const MAX_SECTION_SIZE = 200 * 1024 * 1024;
+      if (sec.size > MAX_SECTION_SIZE) {
+        log(`  [skip] ${nb.displayName}/${sec.name} (${(sec.size / 1024 / 1024).toFixed(0)}MB > 200MB limit)`);
+        skipped++;
+        continue;
+      }
+
       const progress = `[${downloaded + skipped + 1}/${total}]`;
       const sizeStr = sec.size ? ` (${(sec.size / 1024).toFixed(0)}KB)` : "";
       log(`  ${progress} ${nb.displayName}/${sec.name}${sizeStr}`);
