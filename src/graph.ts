@@ -169,6 +169,65 @@ export async function getPageContent(id: string): Promise<string> {
   return res.text();
 }
 
+export type PageUpdateCommand = {
+  target: string; // "body", "title", or "#element-id"
+  action: "append" | "insert" | "prepend" | "replace";
+  position?: "before" | "after";
+  content: string;
+};
+
+/**
+ * Update page content via PATCH. Commands follow MS Graph OneNote page update format.
+ * @see https://learn.microsoft.com/graph/onenote-update-page
+ */
+export async function updatePage(pageId: string, commands: PageUpdateCommand[]) {
+  const res = await graphFetch(`/me/onenote/pages/${pageId}/content`, {
+    method: "PATCH",
+    body: JSON.stringify(commands),
+  });
+  return res.ok;
+}
+
+/**
+ * Rename a page by replacing its title element.
+ */
+export async function renamePage(pageId: string, newTitle: string) {
+  return updatePage(pageId, [
+    { target: "title", action: "replace", content: newTitle },
+  ]);
+}
+
+/**
+ * Append HTML content to a page's body.
+ */
+export async function appendToPage(pageId: string, htmlContent: string) {
+  return updatePage(pageId, [
+    { target: "body", action: "append", content: htmlContent },
+  ]);
+}
+
+/**
+ * Rename a section.
+ */
+export async function renameSection(sectionId: string, newName: string) {
+  const res = await graphFetch(`/me/onenote/sections/${sectionId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ displayName: newName }),
+  });
+  return res.json();
+}
+
+/**
+ * Rename a notebook.
+ */
+export async function renameNotebook(notebookId: string, newName: string) {
+  const res = await graphFetch(`/me/onenote/notebooks/${notebookId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ displayName: newName }),
+  });
+  return res.json();
+}
+
 export async function createPage(sectionId: string, title: string, htmlBody: string) {
   const html = `
 <!DOCTYPE html>
