@@ -137,6 +137,103 @@ docs/
 
 Cache location: `<package>/.onenote/cache/` (override with `ONENOTE_CACHE_DIR`)
 
+## Roadmap
+
+### ✅ v0.1 — Foundation (shipped)
+
+- MSAL device code flow authentication with auto token refresh
+- Notebooks / sections / section-groups / pages CRUD
+- 5,000-item SharePoint limit workaround via OneDrive fallback
+- Local `.one` binary cache with UTF-8 + UTF-16LE page extraction
+- Page GUID extraction from binary
+- Official OneNote page URL resolution via Graph API
+- Full-text page-level search with context snippets
+- `onenote read <url>` — page / section / notebook tree view
+- `onenote rename` / `append` / `delete` for pages, sections, notebooks
+- Incremental sync (compares `lastModifiedDateTime`)
+- Size limit for sync (skips sections > 200MB)
+- `.env.local` auto-load from package dir (cross-directory support)
+- Markdown links in non-TTY, OSC 8 hyperlinks in TTY
+- Published to npm, installable as AI agent skill via `npx skills add snomiao/onenote-cli`
+
+### 🚀 v0.2 — AI Native
+
+Make onenote-cli the standard way AI accesses OneNote.
+
+- **MCP server mode** — `onenote mcp` starts an MCP server on stdio. Unlocks Claude Desktop, Cursor, Continue, and any MCP client.
+- **`onenote ask <question>`** — RAG over your notebook. Searches locally, fetches top N pages, feeds to LLM for answer.
+- **`onenote summarize <url>`** — LLM summary of any page.
+- **Semantic search** — local embeddings via `@xenova/transformers`.
+
+### 📦 v0.3 — Portability
+
+Own your data. Never locked in.
+
+- **`onenote export`** — convert pages to Markdown (preserves images, code blocks, tables, math).
+- **`onenote import <dir>`** — ingest Markdown directory tree as notebook.
+- **`onenote backup --incremental`** — daily diff-based snapshots.
+- **Obsidian / Notion bridges** — `--format obsidian` preserves `[[wiki-links]]`.
+
+### 🎨 v0.4 — Terminal UI
+
+- **`onenote browse`** — interactive TUI with react-ink (tree view, arrow keys, `/` search, split-pane preview).
+- **`onenote fzf`** — pipe all page titles to fuzzy finder.
+- **Progress bars for sync** — real-time KB/s, ETA, spinner.
+- **`onenote stats`** — total pages, size, word count, oldest note, etc.
+
+### 🔧 v0.5 — Power User
+
+Unix composition, scripting, automation.
+
+- **Stdin piping** — `echo "note" | onenote append <id>`.
+- **`--json` flag everywhere** — structured output for `jq` / scripts.
+- **`onenote watch <file> --to-page <id>`** — live sync file → page.
+- **`onenote new --daily`** — auto-create dated journal page with template.
+- **Clipboard capture** — `onenote clip <id>` reads clipboard → page.
+- **Screenshot + OCR** — `onenote snap <id>` captures screen → OCR → page.
+
+### 🤝 v0.6 — Collaboration
+
+- **Group notebooks** — `/groups/{id}/onenote/` support.
+- **SharePoint site notebooks** — `/sites/{id}/onenote/`.
+- **`onenote share <id> --user <email>`** — permissions management.
+- **`onenote diff <url>`** — show changes since last sync.
+- **`onenote subscribe <url>`** — webhooks on page changes.
+
+### 🧠 v0.7 — Insights
+
+- **`onenote graph --out graph.html`** — d3.js interactive page graph (nodes = pages, edges = cross-references).
+- **`onenote duplicates`** — find and merge similar pages.
+- **`onenote timeline`** — activity heatmap by date.
+- **`onenote links <id>`** — incoming/outgoing references for a page.
+
+### 🔐 v0.8 — Privacy & Local-First
+
+- **Offline-only mode** — `--offline` flag uses only local cache.
+- **SQLite FTS5 index** — sub-millisecond full-text search.
+- **End-to-end encryption** — encrypt pages with `age` before sync.
+- **Self-hosted relay** — optional proxy for air-gapped environments.
+
+### 🛠 v1.0 — Platform
+
+- **SDK** — `import { OneNote } from "onenote-cli"`.
+- **HTTP API** — `onenote serve --port 3000` exposes OpenAPI 3.1.
+- **Plugin system** — `onenote plugin install @company/jira-sync`.
+- **Raycast / Alfred extensions** — native launcher integration.
+- **Browser extension** — right-click → save to OneNote.
+- **Proper MS-ONESTORE parser** — 100% accurate page attribution (replaces heuristic).
+
+### Not planned
+
+- GUI / Electron app (OneNote Online exists)
+- Mobile apps (use Microsoft OneNote app)
+- Rich text editor (keep it CLI-first)
+- User management (stay delegated auth only)
+
+## Contributing
+
+Pick any unchecked roadmap item. Open an issue to claim it, or just ship a PR.
+
 ## License
 
 MIT
