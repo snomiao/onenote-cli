@@ -83,6 +83,18 @@ yargs(hideBin(process.argv))
             console.log("ID:", nb.id);
           }
         )
+        .command(
+          "rename <id> <name>",
+          "Rename a notebook",
+          (y) =>
+            y
+              .positional("id", { type: "string", demandOption: true })
+              .positional("name", { type: "string", demandOption: true }),
+          async (argv) => {
+            const nb = await graph.renameNotebook(argv.id as string, argv.name as string);
+            console.log("Notebook renamed to:", nb.displayName);
+          }
+        )
         .demandCommand(1),
     () => {}
   )
@@ -126,6 +138,18 @@ yargs(hideBin(process.argv))
             const section = await graph.createSection(argv.notebookId as string, argv.name as string);
             console.log("Created section:", section.displayName);
             console.log("ID:", section.id);
+          }
+        )
+        .command(
+          "rename <id> <name>",
+          "Rename a section",
+          (y) =>
+            y
+              .positional("id", { type: "string", demandOption: true })
+              .positional("name", { type: "string", demandOption: true }),
+          async (argv) => {
+            const section = await graph.renameSection(argv.id as string, argv.name as string);
+            console.log("Section renamed to:", section.displayName);
           }
         )
         .demandCommand(1),
@@ -218,6 +242,30 @@ yargs(hideBin(process.argv))
           async (argv) => {
             await graph.deletePage(argv.id as string);
             console.log("Page deleted.");
+          }
+        )
+        .command(
+          "rename <id> <title>",
+          "Rename a page (update title)",
+          (y) =>
+            y
+              .positional("id", { type: "string", demandOption: true })
+              .positional("title", { type: "string", demandOption: true }),
+          async (argv) => {
+            await graph.renamePage(argv.id as string, argv.title as string);
+            console.log("Page renamed to:", argv.title);
+          }
+        )
+        .command(
+          "append <id>",
+          "Append HTML content to a page's body",
+          (y) =>
+            y
+              .positional("id", { type: "string", demandOption: true })
+              .option("content", { type: "string", alias: "c", demandOption: true, describe: "HTML content to append" }),
+          async (argv) => {
+            await graph.appendToPage(argv.id as string, argv.content as string);
+            console.log("Appended to page.");
           }
         )
         .demandCommand(1),
