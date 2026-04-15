@@ -327,36 +327,77 @@ export async function searchPages(query: string) {
 /**
  * Parse a OneNote Online URL to determine type and extract GUIDs.
  */
-function parseOneNoteUrl(url: string): {
+interface ParsedOneNoteUrl {
   type: "page" | "section" | "notebook" | "unknown";
   sectionGuid?: string;
   pageGuid?: string;
   notebookId?: string;
-} {
+  // SharePoint / business notebook resolution hints
+  siteRef?: string;        // e.g. "host:/personal/user" for /sites endpoint lookup
+  notebookName?: string;   // from file= param (may have .one stripped elsewhere)
+  sectionName?: string;    // from wd=target first segment (with .one stripped)
+  pageTitle?: string;      // from wd=target second segment (unescaped)
+}
+
+function unescapeOneNoteName(s: string): string {
+  return s.replace(/\\(.)/g, "$1");
+}
+
+function parseOneNoteUrl(url: string): ParsedOneNoteUrl {
   const decoded = decodeURIComponent(url);
   const guids = decoded.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? [];
 
-  // sourcedoc GUID (section)
   const sourcedocMatch = decoded.match(/sourcedoc=\{?([0-9a-f-]+)\}?/i);
-  const sectionGuid = sourcedocMatch?.[1]?.toLowerCase();
+  let sectionGuid = sourcedocMatch?.[1]?.toLowerCase();
 
-  // Check for wd=target (means section or page level)
-  const hasWdTarget = /wd=target/i.test(decoded);
+  // SharePoint siteRef from the URL host + /personal/{user} or /sites/{name} segment
+  let siteRef: string | undefined;
+  try {
+    const u = new URL(url);
+    if (/sharepoint\.com$/i.test(u.hostname)) {
+      const p = decodeURIComponent(u.pathname);
+      const personal = p.match(/\/(personal\/[^/]+)/i);
+      const site = p.match(/\/(sites|teams)\/([^/]+)/i);
+      if (personal) siteRef = `${u.hostname}:/${personal[1]}:`;
+      else if (site) siteRef = `${u.hostname}:/${site[1]}/${site[2]}:`;
+    }
+  } catch {}
 
-  // Page GUID is the LAST GUID in wd=target (after section group GUID + title)
-  const pageGuid = hasWdTarget && guids.length > 1
-    ? guids[guids.length - 1].toLowerCase()
-    : undefined;
+  // file= gives the notebook name for Doc.aspx URLs
+  const fileMatch = decoded.match(/[?&]file=([^&]+)/i);
+  const notebookName = fileMatch ? decodeURIComponent(fileMatch[1]).replace(/\.one$/i, "") : undefined;
 
-  // Detect notebook ID from URL path like /notebooks/1-{guid}
+  // wd=target(sectionName|SECTION_GUID/pageTitle|PAGE_GUID/)
+  // Page titles may contain escaped ')' as '\\)' — skip those when finding the terminator.
+  const wdTargetMatch = decoded.match(/wd=target\(((?:[^)\\]|\\.)*)\)/i);
+  let pageGuid: string | undefined;
+  let sectionName: string | undefined;
+  let pageTitle: string | undefined;
+  if (wdTargetMatch) {
+    const target = wdTargetMatch[1];
+    // Capture "name|guid" pairs, where name may contain backslash escapes.
+    const pairs = [...target.matchAll(/((?:[^|\\]|\\.)+)\|([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi)];
+    if (pairs.length >= 1) {
+      sectionName = unescapeOneNoteName(pairs[0][1]).replace(/\.one$/i, "");
+      sectionGuid = pairs[0][2].toLowerCase();
+    }
+    if (pairs.length >= 2) {
+      // Second pair's name begins with "/" (segment separator) — strip it.
+      pageTitle = unescapeOneNoteName(pairs[1][1].replace(/^\//, ""));
+      pageGuid = pairs[1][2].toLowerCase();
+    } else if (pairs.length === 0 && guids.length > 1) {
+      pageGuid = guids[guids.length - 1].toLowerCase();
+    }
+  }
+
   const nbMatch = decoded.match(/notebooks\/(1-[0-9a-f-]+)/i);
   const notebookId = nbMatch?.[1];
 
-  if (pageGuid && sectionGuid) return { type: "page", sectionGuid, pageGuid };
-  if (sectionGuid) return { type: "section", sectionGuid };
-  if (notebookId) return { type: "notebook", notebookId };
-  if (sectionGuid) return { type: "section", sectionGuid };
-  return { type: "unknown" };
+  const base = { siteRef, notebookName, sectionName, pageTitle };
+  if (pageGuid && sectionGuid) return { type: "page", sectionGuid, pageGuid, ...base };
+  if (sectionGuid) return { type: "section", sectionGuid, ...base };
+  if (notebookId) return { type: "notebook", notebookId, ...base };
+  return { type: "unknown", ...base };
 }
 
 function htmlToText(html: string): string {
@@ -378,6 +419,75 @@ function htmlToText(html: string): string {
     .replace(/&#39;/g, "'")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+// --- Site-scoped resolution (bypasses 5000-item limit on /me/onenote/*) ---
+
+const siteIdCache = new Map<string, string>();
+
+async function resolveSiteId(siteRef: string): Promise<string> {
+  if (siteIdCache.has(siteRef)) return siteIdCache.get(siteRef)!;
+  const res = await graphFetch(`/sites/${siteRef}?$select=id`);
+  const site = (await res.json()) as any;
+  siteIdCache.set(siteRef, site.id);
+  return site.id;
+}
+
+function odataEscape(s: string): string {
+  return s.replace(/'/g, "''");
+}
+
+function extractSectionIdFromClientUrl(href: string | undefined, wantGuid?: string): boolean {
+  if (!href || !wantGuid) return false;
+  const m = decodeURIComponent(href).match(/section-id=([0-9a-f-]+)/i);
+  return (m?.[1]?.toLowerCase() ?? "") === wantGuid;
+}
+
+function extractPageIdFromClientUrl(href: string | undefined, wantGuid?: string): boolean {
+  if (!href || !wantGuid) return false;
+  const m = decodeURIComponent(href).match(/page-id=([0-9a-f-]+)/i);
+  return (m?.[1]?.toLowerCase() ?? "") === wantGuid;
+}
+
+async function resolveSharePointSection(
+  siteId: string,
+  sectionName: string,
+  sectionGuid?: string
+): Promise<{ id: string; displayName: string } | null> {
+  const res = await graphFetch(
+    `/sites/${siteId}/onenote/sections?$filter=displayName eq '${odataEscape(sectionName)}'&$select=id,displayName,links&$top=50`
+  );
+  const data: GraphResponse<any> = await res.json();
+  if (!data.value?.length) return null;
+  if (data.value.length === 1 || !sectionGuid) return data.value[0];
+  // Multiple matches — disambiguate by section-id in oneNoteClientUrl
+  const match = data.value.find((s: any) =>
+    extractSectionIdFromClientUrl(s.links?.oneNoteClientUrl?.href, sectionGuid)
+  );
+  return match ?? data.value[0];
+}
+
+async function resolveSharePointPage(
+  siteId: string,
+  sectionId: string,
+  pageTitle: string,
+  pageGuid?: string
+): Promise<{ id: string; title: string; webUrl: string } | null> {
+  const res = await graphFetch(
+    `/sites/${siteId}/onenote/sections/${sectionId}/pages?$filter=title eq '${odataEscape(pageTitle)}'&$select=id,title,links&$top=50`
+  );
+  const data: GraphResponse<any> = await res.json();
+  const mapOne = (p: any) => ({
+    id: p.id,
+    title: p.title ?? "(untitled)",
+    webUrl: p.links?.oneNoteWebUrl?.href ?? "",
+  });
+  if (!data.value?.length) return null;
+  if (data.value.length === 1 || !pageGuid) return mapOne(data.value[0]);
+  const match = data.value.find((p: any) =>
+    extractPageIdFromClientUrl(p.links?.oneNoteClientUrl?.href, pageGuid)
+  );
+  return mapOne(match ?? data.value[0]);
 }
 
 /**
@@ -412,6 +522,47 @@ export async function readOneNoteUrl(url: string): Promise<{
   pageUrl?: string;
 }> {
   const parsed = parseOneNoteUrl(url);
+
+  // --- SharePoint (business) path: use site-scoped endpoints to bypass
+  //     the 5000-OneNote-item limit on /me/onenote/*.
+  if (parsed.siteRef && parsed.sectionName) {
+    try {
+      const siteId = await resolveSiteId(parsed.siteRef);
+      const section = await resolveSharePointSection(siteId, parsed.sectionName, parsed.sectionGuid);
+      if (section) {
+        // Page?
+        if (parsed.pageTitle) {
+          const page = await resolveSharePointPage(siteId, section.id, parsed.pageTitle, parsed.pageGuid);
+          if (page) {
+            const contentRes = await graphFetch(`/sites/${siteId}/onenote/pages/${page.id}/content`);
+            const html = await contentRes.text();
+            return {
+              type: "page",
+              title: page.title,
+              content: htmlToText(html),
+              html,
+              pageUrl: page.webUrl,
+            };
+          }
+        }
+        // Section tree view
+        const pagesRes = await graphFetch(
+          `/sites/${siteId}/onenote/sections/${section.id}/pages?$select=id,title&$top=100`
+        );
+        const pagesData: GraphResponse<any> = await pagesRes.json();
+        const pageList = pagesData.value ?? [];
+        const tree = pageList.map((p: any, i: number) => `${i + 1}. ${p.title ?? "(untitled)"}`).join("\n");
+        return {
+          type: "section",
+          title: section.displayName,
+          content: `${section.displayName} (${pageList.length} pages)\n\n${tree}`,
+        };
+      }
+    } catch (err: any) {
+      // Fall through to legacy paths; include message in final error if none match.
+      if (!is5000LimitError(err) && err?.statusCode !== 404) throw err;
+    }
+  }
 
   // --- Page ---
   if (parsed.type === "page" && parsed.sectionGuid) {
