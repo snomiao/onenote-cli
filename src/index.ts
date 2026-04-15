@@ -236,35 +236,41 @@ yargs(hideBin(process.argv))
           }
         )
         .command(
-          "delete <id>",
-          "Delete a page",
-          (y) => y.positional("id", { type: "string", demandOption: true }),
+          "delete <ref>",
+          "Delete a page (accepts a page ID or a OneNote URL)",
+          (y) => y.positional("ref", { type: "string", demandOption: true }),
           async (argv) => {
-            await graph.deletePage(argv.id as string);
+            await graph.deletePage((argv.ref as string).replace(/^["']|["']$/g, ""));
             console.log("Page deleted.");
           }
         )
         .command(
-          "rename <id> <title>",
-          "Rename a page (update title)",
+          "rename <ref> <title>",
+          "Rename a page (accepts a page ID or a OneNote URL)",
           (y) =>
             y
-              .positional("id", { type: "string", demandOption: true })
+              .positional("ref", { type: "string", demandOption: true })
               .positional("title", { type: "string", demandOption: true }),
           async (argv) => {
-            await graph.renamePage(argv.id as string, argv.title as string);
+            await graph.renamePage(
+              (argv.ref as string).replace(/^["']|["']$/g, ""),
+              argv.title as string
+            );
             console.log("Page renamed to:", argv.title);
           }
         )
         .command(
-          "append <id>",
-          "Append HTML content to a page's body",
+          "append <ref>",
+          "Append HTML content to a page's body (accepts a page ID or a OneNote URL)",
           (y) =>
             y
-              .positional("id", { type: "string", demandOption: true })
+              .positional("ref", { type: "string", demandOption: true })
               .option("content", { type: "string", alias: "c", demandOption: true, describe: "HTML content to append" }),
           async (argv) => {
-            await graph.appendToPage(argv.id as string, argv.content as string);
+            await graph.appendToPage(
+              (argv.ref as string).replace(/^["']|["']$/g, ""),
+              argv.content as string
+            );
             console.log("Appended to page.");
           }
         )
