@@ -178,10 +178,13 @@ export type PageUpdateCommand = {
 
 /**
  * Update page content via PATCH. Commands follow MS Graph OneNote page update format.
+ * Accepts either a page ID or a OneNote URL (SharePoint URLs use site-scoped
+ * endpoints to bypass the 5000-item limit on /me/onenote/*).
  * @see https://learn.microsoft.com/graph/onenote-update-page
  */
-export async function updatePage(pageId: string, commands: PageUpdateCommand[]) {
-  const res = await graphFetch(`/me/onenote/pages/${pageId}/content`, {
+export async function updatePage(urlOrId: string, commands: PageUpdateCommand[]) {
+  const { apiBase, pageId } = await resolvePageRef(urlOrId);
+  const res = await graphFetch(`${apiBase}/onenote/pages/${pageId}/content`, {
     method: "PATCH",
     body: JSON.stringify(commands),
   });
@@ -191,8 +194,8 @@ export async function updatePage(pageId: string, commands: PageUpdateCommand[]) 
 /**
  * Rename a page by replacing its title element.
  */
-export async function renamePage(pageId: string, newTitle: string) {
-  return updatePage(pageId, [
+export async function renamePage(urlOrId: string, newTitle: string) {
+  return updatePage(urlOrId, [
     { target: "title", action: "replace", content: newTitle },
   ]);
 }
@@ -200,8 +203,8 @@ export async function renamePage(pageId: string, newTitle: string) {
 /**
  * Append HTML content to a page's body.
  */
-export async function appendToPage(pageId: string, htmlContent: string) {
-  return updatePage(pageId, [
+export async function appendToPage(urlOrId: string, htmlContent: string) {
+  return updatePage(urlOrId, [
     { target: "body", action: "append", content: htmlContent },
   ]);
 }
@@ -248,8 +251,9 @@ export async function createPage(sectionId: string, title: string, htmlBody: str
   return res.json();
 }
 
-export async function deletePage(id: string) {
-  await graphFetch(`/me/onenote/pages/${id}`, { method: "DELETE" });
+export async function deletePage(urlOrId: string) {
+  const { apiBase, pageId } = await resolvePageRef(urlOrId);
+  await graphFetch(`${apiBase}/onenote/pages/${pageId}`, { method: "DELETE" });
 }
 
 // --- Search ---
@@ -488,6 +492,32 @@ async function resolveSharePointPage(
     extractPageIdFromClientUrl(p.links?.oneNoteClientUrl?.href, pageGuid)
   );
   return mapOne(match ?? data.value[0]);
+}
+
+/**
+ * Resolve a URL-or-ID reference to the correct Graph API base + page ID.
+ * - If the input looks like an http(s) URL, parse it and resolve via the
+ *   SharePoint site-scoped endpoint when applicable (bypasses 5000-item limit).
+ * - Otherwise, treat the input as a Graph page ID under /me/onenote/.
+ */
+async function resolvePageRef(
+  urlOrId: string
+): Promise<{ apiBase: string; pageId: string; title?: string; webUrl?: string }> {
+  if (!/^https?:\/\//i.test(urlOrId)) {
+    return { apiBase: "/me", pageId: urlOrId };
+  }
+  const parsed = parseOneNoteUrl(urlOrId);
+  if (!parsed.siteRef || !parsed.sectionName || !parsed.pageTitle) {
+    throw new Error(
+      "URL does not point to a specific page (need both section and page in wd=target)."
+    );
+  }
+  const siteId = await resolveSiteId(parsed.siteRef);
+  const section = await resolveSharePointSection(siteId, parsed.sectionName, parsed.sectionGuid);
+  if (!section) throw new Error(`Section '${parsed.sectionName}' not found.`);
+  const page = await resolveSharePointPage(siteId, section.id, parsed.pageTitle, parsed.pageGuid);
+  if (!page) throw new Error(`Page '${parsed.pageTitle}' not found in section '${section.displayName}'.`);
+  return { apiBase: `/sites/${siteId}`, pageId: page.id, title: page.title, webUrl: page.webUrl };
 }
 
 /**
