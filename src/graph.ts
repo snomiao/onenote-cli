@@ -74,6 +74,12 @@ export async function getNotebook(id: string) {
   return res.json();
 }
 
+async function getNotebookByRef(ref: string) {
+  const { apiBase, notebookId } = await resolveNotebookRef(ref);
+  const res = await graphFetch(`${apiBase}/onenote/notebooks/${notebookId}`);
+  return res.json();
+}
+
 export async function createNotebook(displayName: string) {
   const res = await graphFetch("/me/onenote/notebooks", {
     method: "POST",
@@ -86,16 +92,18 @@ export async function createNotebook(displayName: string) {
 
 export async function listSections(notebookId?: string) {
   try {
-    const path = notebookId
-      ? `/me/onenote/notebooks/${notebookId}/sections`
-      : "/me/onenote/sections";
+    let path = "/me/onenote/sections";
+    if (notebookId) {
+      const { apiBase, notebookId: resolvedNotebookId } = await resolveNotebookRef(notebookId);
+      path = `${apiBase}/onenote/notebooks/${resolvedNotebookId}/sections`;
+    }
     const res = await graphFetch(path);
     const data: GraphResponse<any> = await res.json();
     return data.value;
   } catch (err: any) {
     if (!is5000LimitError(err) || !notebookId) throw err;
     // Fallback: list .one files via OneDrive
-    const notebook = await getNotebook(notebookId);
+    const notebook = await getNotebookByRef(notebookId);
     const files = await listNotebookFilesViaDrive(notebook);
     return files
       .filter((f: any) => f.name?.endsWith(".one"))
@@ -115,7 +123,8 @@ export async function getSection(id: string) {
 }
 
 export async function createSection(notebookId: string, displayName: string) {
-  const res = await graphFetch(`/me/onenote/notebooks/${notebookId}/sections`, {
+  const { apiBase, notebookId: resolvedNotebookId } = await resolveNotebookRef(notebookId);
+  const res = await graphFetch(`${apiBase}/onenote/notebooks/${resolvedNotebookId}/sections`, {
     method: "POST",
     body: JSON.stringify({ displayName }),
   });
@@ -126,16 +135,18 @@ export async function createSection(notebookId: string, displayName: string) {
 
 export async function listSectionGroups(notebookId?: string) {
   try {
-    const path = notebookId
-      ? `/me/onenote/notebooks/${notebookId}/sectionGroups`
-      : "/me/onenote/sectionGroups";
+    let path = "/me/onenote/sectionGroups";
+    if (notebookId) {
+      const { apiBase, notebookId: resolvedNotebookId } = await resolveNotebookRef(notebookId);
+      path = `${apiBase}/onenote/notebooks/${resolvedNotebookId}/sectionGroups`;
+    }
     const res = await graphFetch(path);
     const data: GraphResponse<any> = await res.json();
     return data.value;
   } catch (err: any) {
     if (!is5000LimitError(err) || !notebookId) throw err;
     // Fallback: list folders via OneDrive
-    const notebook = await getNotebook(notebookId);
+    const notebook = await getNotebookByRef(notebookId);
     const files = await listNotebookFilesViaDrive(notebook);
     return files
       .filter((f: any) => f.folder && !f.name?.startsWith("OneNote_") && f.name !== "deletePending")
@@ -151,21 +162,25 @@ export async function listSectionGroups(notebookId?: string) {
 // --- Pages ---
 
 export async function listPages(sectionId?: string) {
-  const path = sectionId
-    ? `/me/onenote/sections/${sectionId}/pages`
-    : "/me/onenote/pages";
+  let path = "/me/onenote/pages";
+  if (sectionId) {
+    const { apiBase, sectionId: resolvedSectionId } = await resolveSectionRef(sectionId);
+    path = `${apiBase}/onenote/sections/${resolvedSectionId}/pages`;
+  }
   const res = await graphFetch(path);
   const data: GraphResponse<any> = await res.json();
   return data.value;
 }
 
 export async function getPage(id: string) {
-  const res = await graphFetch(`/me/onenote/pages/${id}`);
+  const { apiBase, pageId } = await resolvePageRef(id);
+  const res = await graphFetch(`${apiBase}/onenote/pages/${pageId}`);
   return res.json();
 }
 
 export async function getPageContent(id: string): Promise<string> {
-  const res = await graphFetch(`/me/onenote/pages/${id}/content`);
+  const { apiBase, pageId } = await resolvePageRef(id);
+  const res = await graphFetch(`${apiBase}/onenote/pages/${pageId}/content`);
   return res.text();
 }
 
@@ -232,6 +247,7 @@ export async function renameNotebook(notebookId: string, newName: string) {
 }
 
 export async function createPage(sectionId: string, title: string, htmlBody: string) {
+  const { apiBase, sectionId: resolvedSectionId } = await resolveSectionRef(sectionId);
   const html = `
 <!DOCTYPE html>
 <html>
@@ -243,7 +259,7 @@ export async function createPage(sectionId: string, title: string, htmlBody: str
   </body>
 </html>`;
 
-  const res = await graphFetch(`/me/onenote/sections/${sectionId}/pages`, {
+  const res = await graphFetch(`${apiBase}/onenote/sections/${resolvedSectionId}/pages`, {
     method: "POST",
     headers: { "Content-Type": "text/html" },
     body: html,
@@ -336,9 +352,10 @@ interface ParsedOneNoteUrl {
   sectionGuid?: string;
   pageGuid?: string;
   notebookId?: string;
+  fileName?: string;       // from file= param or .one path basename
   // SharePoint / business notebook resolution hints
   siteRef?: string;        // e.g. "host:/personal/user" for /sites endpoint lookup
-  notebookName?: string;   // from file= param (may have .one stripped elsewhere)
+  notebookName?: string;   // from direct notebook path basename
   sectionName?: string;    // from wd=target first segment (with .one stripped)
   pageTitle?: string;      // from wd=target second segment (unescaped)
 }
@@ -350,12 +367,14 @@ function unescapeOneNoteName(s: string): string {
 function parseOneNoteUrl(url: string): ParsedOneNoteUrl {
   const decoded = decodeURIComponent(url);
   const guids = decoded.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? [];
+  let fileName: string | undefined;
 
   const sourcedocMatch = decoded.match(/sourcedoc=\{?([0-9a-f-]+)\}?/i);
   let sectionGuid = sourcedocMatch?.[1]?.toLowerCase();
 
   // SharePoint siteRef from the URL host + /personal/{user} or /sites/{name} segment
   let siteRef: string | undefined;
+  let notebookName: string | undefined;
   try {
     const u = new URL(url);
     if (/sharepoint\.com$/i.test(u.hostname)) {
@@ -364,12 +383,20 @@ function parseOneNoteUrl(url: string): ParsedOneNoteUrl {
       const site = p.match(/\/(sites|teams)\/([^/]+)/i);
       if (personal) siteRef = `${u.hostname}:/${personal[1]}:`;
       else if (site) siteRef = `${u.hostname}:/${site[1]}/${site[2]}:`;
+
+      const lastSegment = p.split("/").filter(Boolean).at(-1);
+      if (lastSegment && !/\.aspx$/i.test(lastSegment)) {
+        if (/\.one$/i.test(lastSegment)) fileName = lastSegment.replace(/\.one$/i, "");
+        else notebookName = lastSegment;
+      }
     }
   } catch {}
 
-  // file= gives the notebook name for Doc.aspx URLs
+  // Doc.aspx URLs expose the current .one file as the `file=` query parameter.
   const fileMatch = decoded.match(/[?&]file=([^&]+)/i);
-  const notebookName = fileMatch ? decodeURIComponent(fileMatch[1]).replace(/\.one$/i, "") : undefined;
+  if (fileMatch) {
+    fileName = decodeURIComponent(fileMatch[1]).replace(/\.one$/i, "");
+  }
 
   // wd=target(sectionName|SECTION_GUID/pageTitle|PAGE_GUID/)
   // Page titles may contain escaped ')' as '\\)' — skip those when finding the terminator.
@@ -394,13 +421,17 @@ function parseOneNoteUrl(url: string): ParsedOneNoteUrl {
     }
   }
 
+  if (!sectionName && fileName && sectionGuid) {
+    sectionName = fileName;
+  }
+
   const nbMatch = decoded.match(/notebooks\/(1-[0-9a-f-]+)/i);
   const notebookId = nbMatch?.[1];
 
-  const base = { siteRef, notebookName, sectionName, pageTitle };
+  const base = { siteRef, fileName, notebookName, sectionName, pageTitle };
   if (pageGuid && sectionGuid) return { type: "page", sectionGuid, pageGuid, ...base };
   if (sectionGuid) return { type: "section", sectionGuid, ...base };
-  if (notebookId) return { type: "notebook", notebookId, ...base };
+  if (notebookId || notebookName) return { type: "notebook", notebookId, ...base };
   return { type: "unknown", ...base };
 }
 
@@ -453,6 +484,21 @@ function extractPageIdFromClientUrl(href: string | undefined, wantGuid?: string)
   return (m?.[1]?.toLowerCase() ?? "") === wantGuid;
 }
 
+async function resolveSharePointNotebook(
+  siteId: string,
+  notebookName: string
+): Promise<{ id: string; displayName: string } | null> {
+  const res = await graphFetch(
+    `/sites/${siteId}/onenote/notebooks?$filter=displayName eq '${odataEscape(notebookName)}'&$select=id,displayName&$top=50`
+  );
+  const data: GraphResponse<any> = await res.json();
+  if (!data.value?.length) return null;
+  return {
+    id: data.value[0].id,
+    displayName: data.value[0].displayName ?? notebookName,
+  };
+}
+
 async function resolveSharePointSection(
   siteId: string,
   sectionName: string,
@@ -492,6 +538,58 @@ async function resolveSharePointPage(
     extractPageIdFromClientUrl(p.links?.oneNoteClientUrl?.href, pageGuid)
   );
   return mapOne(match ?? data.value[0]);
+}
+
+async function resolveNotebookRef(
+  urlOrId: string
+): Promise<{ apiBase: string; notebookId: string; displayName?: string }> {
+  if (!/^https?:\/\//i.test(urlOrId)) {
+    return { apiBase: "/me", notebookId: urlOrId };
+  }
+
+  const parsed = parseOneNoteUrl(urlOrId);
+  if (parsed.notebookId) {
+    return { apiBase: "/me", notebookId: parsed.notebookId, displayName: parsed.notebookName };
+  }
+
+  if (!parsed.siteRef || !parsed.notebookName) {
+    throw new Error("URL does not point to a notebook with a resolvable name.");
+  }
+
+  const siteId = await resolveSiteId(parsed.siteRef);
+  const notebook = await resolveSharePointNotebook(siteId, parsed.notebookName);
+  if (!notebook) throw new Error(`Notebook '${parsed.notebookName}' not found.`);
+  return { apiBase: `/sites/${siteId}`, notebookId: notebook.id, displayName: notebook.displayName };
+}
+
+async function resolveSectionRef(
+  urlOrId: string
+): Promise<{ apiBase: string; sectionId: string; displayName?: string }> {
+  if (!/^https?:\/\//i.test(urlOrId)) {
+    return { apiBase: "/me", sectionId: urlOrId };
+  }
+
+  const parsed = parseOneNoteUrl(urlOrId);
+  if (parsed.siteRef) {
+    const siteId = await resolveSiteId(parsed.siteRef);
+    const sectionName = parsed.sectionName ?? parsed.fileName;
+    if (sectionName) {
+      const section = await resolveSharePointSection(siteId, sectionName, parsed.sectionGuid);
+      if (section) {
+        return { apiBase: `/sites/${siteId}`, sectionId: section.id, displayName: section.displayName };
+      }
+    }
+  }
+
+  if (parsed.sectionGuid) {
+    return {
+      apiBase: "/me",
+      sectionId: `0-${parsed.sectionGuid}`,
+      displayName: parsed.sectionName ?? parsed.fileName,
+    };
+  }
+
+  throw new Error("URL does not point to a specific section.");
 }
 
 /**
@@ -642,10 +740,12 @@ export async function readOneNoteUrl(url: string): Promise<{
   }
 
   // --- Notebook ---
-  if (parsed.type === "notebook" && parsed.notebookId) {
+  if (parsed.type === "notebook") {
     try {
-      const nb = await getNotebook(parsed.notebookId);
-      const sections = await listSections(parsed.notebookId);
+      const { apiBase, notebookId } = await resolveNotebookRef(url);
+      const nbRes = await graphFetch(`${apiBase}/onenote/notebooks/${notebookId}`);
+      const nb = await nbRes.json() as any;
+      const sections = await listSections(url);
       const tree = sections.map((s: any, i: number) => `${i + 1}. ${s.displayName ?? s.name ?? "(untitled)"}`).join("\n");
       return {
         type: "notebook",
