@@ -7,7 +7,7 @@ A CLI that lets AI agents (and humans) search, read, and operate your OneNote �
 ## Features
 
 - **Page-level search** — search inside all your OneNote pages, get results with URLs that open directly to the matching page in OneNote Online
-- **Notebooks / Sections / Pages** — list, get, create, delete via Graph API
+- **Notebooks / Sections / Pages** — list, get, create, update, delete via Graph API
 - **5,000-item workaround** — when Graph OneNote API is blocked by the SharePoint document library limit, automatically falls back to OneDrive file API + local binary parsing
 - **Local cache** — downloads `.one` files, extracts text (UTF-8 + UTF-16LE), builds a searchable index
 - **Official OneNote URLs** — resolves page GUIDs via `GET /me/onenote/sections/0-{guid}/pages` to get URLs that bypass OneNote Online's session caching
@@ -59,15 +59,18 @@ onenote notebooks get <id>
 onenote notebooks create <name>
 
 # Sections (falls back to OneDrive if Graph API is blocked)
-onenote sections list -n <notebook-id>
-onenote sections create -n <notebook-id> --name <name>
+onenote sections list [<notebook-id-or-url>]
+onenote sections create -n <notebook-id-or-url> --name <name>
 
 # Pages
-onenote pages list -s <section-id>
-onenote pages get <id>
-onenote pages content <id>
-onenote pages create -s <section-id> -t <title> -b "<html>"
-onenote pages delete <id>
+onenote pages list [<section-id-or-url>]
+onenote pages get <page-id-or-url>
+onenote pages content <page-id-or-url>
+onenote pages create -s <section-id-or-url> -t <title> -b "<html>"
+onenote pages create -s <section-id-or-url> -t <title> --body "# Heading" --md
+onenote pages append <page-id-or-url> -c "- bullet" --md
+onenote pages update <page-id-or-url> --target "#element-id" --action replace -c "<p>new</p>"
+onenote pages delete <page-id-or-url>
 
 # Search
 onenote sync                # Download and cache all sections
@@ -149,7 +152,9 @@ Cache location: `<package>/.onenote/cache/` (override with `ONENOTE_CACHE_DIR`)
 - Official OneNote page URL resolution via Graph API
 - Full-text page-level search with context snippets
 - `onenote read <url>` — page / section / notebook tree view
-- `onenote rename` / `append` / `delete` for pages, sections, notebooks
+- Page editing via `rename` / `append` / `update` / `delete`
+- URL-or-ID refs for `sections list`, `pages list`, `pages get`, `pages content`, and page write commands
+- Markdown input for `pages create` / `append` / `update` via `--md`
 - Incremental sync (compares `lastModifiedDateTime`)
 - Size limit for sync (skips sections > 200MB)
 - `.env.local` auto-load from package dir (cross-directory support)

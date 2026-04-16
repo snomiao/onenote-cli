@@ -4,6 +4,7 @@ import { hideBin } from "yargs/helpers";
 import * as graph from "./graph";
 import { logout, whoami } from "./auth";
 import { syncCache, searchLocal, isCacheEmpty } from "./cache";
+import { markdownToHtml } from "./markdown";
 
 const isTTY = process.stdout.isTTY ?? false;
 
@@ -14,6 +15,8 @@ const yellow = (s: string) => (isTTY ? `\x1b[33m${s}\x1b[0m` : s);
 const cyan = (s: string) => (isTTY ? `\x1b[36m${s}\x1b[0m` : s);
 const green = (s: string) => (isTTY ? `\x1b[32m${s}\x1b[0m` : s);
 const magenta = (s: string) => (isTTY ? `\x1b[35m${s}\x1b[0m` : s);
+const pageUpdateActions = ["append", "insert", "prepend", "replace"] as const;
+const pageInsertPositions = ["before", "after"] as const;
 
 // OSC 8 hyperlink (clickable in supported terminals), markdown in non-TTY
 function link(url: string, text: string): string {
@@ -37,6 +40,20 @@ function formatTable(items: any[], columns: { key: string; label: string }[]) {
     const row = columns.map((col, i) => String(item[col.key] ?? "").padEnd(widths[i])).join("  ");
     console.log(row);
   }
+}
+
+function normalizeRef(value: string | undefined): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return value.replace(/^["']|["']$/g, "");
+}
+
+function renderHtmlContent(content: string, markdown?: boolean): string {
+  return markdown ? markdownToHtml(content) : content;
+}
+
+function renderHtmlBody(content: string | undefined, markdown?: boolean): string {
+  if (!content || content.trim() === "") return "<p></p>";
+  return renderHtmlContent(content, markdown);
 }
 
 yargs(hideBin(process.argv))
@@ -106,11 +123,15 @@ yargs(hideBin(process.argv))
     (yargs) =>
       yargs
         .command(
-          ["list", "ls"],
+          ["list [ref]", "ls [ref]"],
           "List sections",
-          (y) => y.option("notebook-id", { type: "string", alias: "n", describe: "Filter by notebook ID" }),
+          (y) =>
+            y
+              .positional("ref", { type: "string", describe: "Notebook ID or URL" })
+              .option("notebook-id", { type: "string", alias: "n", describe: "Filter by notebook ID or URL" }),
           async (argv) => {
-            const sections = await graph.listSections(argv.notebookId as string | undefined);
+            const notebookRef = normalizeRef((argv.ref as string | undefined) ?? (argv.notebookId as string | undefined));
+            const sections = await graph.listSections(notebookRef);
             formatTable(sections, [
               { key: "id", label: "ID" },
               { key: "displayName", label: "Name" },
@@ -132,10 +153,13 @@ yargs(hideBin(process.argv))
           "Create a new section in a notebook",
           (y) =>
             y
-              .option("notebook-id", { type: "string", alias: "n", demandOption: true, describe: "Notebook ID" })
+              .option("notebook-id", { type: "string", alias: "n", demandOption: true, describe: "Notebook ID or URL" })
               .option("name", { type: "string", demandOption: true, describe: "Section name" }),
           async (argv) => {
-            const section = await graph.createSection(argv.notebookId as string, argv.name as string);
+            const section = await graph.createSection(
+              normalizeRef(argv.notebookId as string)!,
+              argv.name as string
+            );
             console.log("Created section:", section.displayName);
             console.log("ID:", section.id);
           }
@@ -163,11 +187,15 @@ yargs(hideBin(process.argv))
     (yargs) =>
       yargs
         .command(
-          ["list", "ls"],
+          ["list [ref]", "ls [ref]"],
           "List section groups",
-          (y) => y.option("notebook-id", { type: "string", alias: "n", describe: "Filter by notebook ID" }),
+          (y) =>
+            y
+              .positional("ref", { type: "string", describe: "Notebook ID or URL" })
+              .option("notebook-id", { type: "string", alias: "n", describe: "Filter by notebook ID or URL" }),
           async (argv) => {
-            const groups = await graph.listSectionGroups(argv.notebookId as string | undefined);
+            const notebookRef = normalizeRef((argv.ref as string | undefined) ?? (argv.notebookId as string | undefined));
+            const groups = await graph.listSectionGroups(notebookRef);
             formatTable(groups, [
               { key: "id", label: "ID" },
               { key: "displayName", label: "Name" },
@@ -186,11 +214,15 @@ yargs(hideBin(process.argv))
     (yargs) =>
       yargs
         .command(
-          ["list", "ls"],
+          ["list [ref]", "ls [ref]"],
           "List pages",
-          (y) => y.option("section-id", { type: "string", alias: "s", describe: "Filter by section ID" }),
+          (y) =>
+            y
+              .positional("ref", { type: "string", describe: "Section ID or URL" })
+              .option("section-id", { type: "string", alias: "s", describe: "Filter by section ID or URL" }),
           async (argv) => {
-            const pages = await graph.listPages(argv.sectionId as string | undefined);
+            const sectionRef = normalizeRef((argv.ref as string | undefined) ?? (argv.sectionId as string | undefined));
+            const pages = await graph.listPages(sectionRef);
             formatTable(pages, [
               { key: "id", label: "ID" },
               { key: "title", label: "Title" },
@@ -200,20 +232,20 @@ yargs(hideBin(process.argv))
           }
         )
         .command(
-          "get <id>",
-          "Get page metadata",
-          (y) => y.positional("id", { type: "string", demandOption: true }),
+          "get <ref>",
+          "Get page metadata (accepts a page ID or a OneNote URL)",
+          (y) => y.positional("ref", { type: "string", demandOption: true }),
           async (argv) => {
-            const page = await graph.getPage(argv.id as string);
+            const page = await graph.getPage(normalizeRef(argv.ref as string)!);
             console.log(JSON.stringify(page, null, 2));
           }
         )
         .command(
-          "content <id>",
-          "Get page HTML content",
-          (y) => y.positional("id", { type: "string", demandOption: true }),
+          "content <ref>",
+          "Get page HTML content (accepts a page ID or a OneNote URL)",
+          (y) => y.positional("ref", { type: "string", demandOption: true }),
           async (argv) => {
-            const html = await graph.getPageContent(argv.id as string);
+            const html = await graph.getPageContent(normalizeRef(argv.ref as string)!);
             console.log(html);
           }
         )
@@ -222,14 +254,15 @@ yargs(hideBin(process.argv))
           "Create a new page",
           (y) =>
             y
-              .option("section-id", { type: "string", alias: "s", demandOption: true, describe: "Section ID" })
+              .option("section-id", { type: "string", alias: "s", demandOption: true, describe: "Section ID or URL" })
               .option("title", { type: "string", alias: "t", demandOption: true, describe: "Page title" })
-              .option("body", { type: "string", alias: "b", default: "<p></p>", describe: "HTML body content" }),
+              .option("body", { type: "string", alias: "b", describe: "HTML body content" })
+              .option("md", { type: "boolean", describe: "Treat --body as Markdown and convert it to HTML" }),
           async (argv) => {
             const page = await graph.createPage(
-              argv.sectionId as string,
+              normalizeRef(argv.sectionId as string)!,
               argv.title as string,
-              argv.body as string
+              renderHtmlBody(argv.body as string | undefined, argv.md as boolean | undefined)
             );
             console.log("Created page:", page.title);
             console.log("ID:", page.id);
@@ -240,7 +273,7 @@ yargs(hideBin(process.argv))
           "Delete a page (accepts a page ID or a OneNote URL)",
           (y) => y.positional("ref", { type: "string", demandOption: true }),
           async (argv) => {
-            await graph.deletePage((argv.ref as string).replace(/^["']|["']$/g, ""));
+            await graph.deletePage(normalizeRef(argv.ref as string)!);
             console.log("Page deleted.");
           }
         )
@@ -253,7 +286,7 @@ yargs(hideBin(process.argv))
               .positional("title", { type: "string", demandOption: true }),
           async (argv) => {
             await graph.renamePage(
-              (argv.ref as string).replace(/^["']|["']$/g, ""),
+              normalizeRef(argv.ref as string)!,
               argv.title as string
             );
             console.log("Page renamed to:", argv.title);
@@ -265,13 +298,68 @@ yargs(hideBin(process.argv))
           (y) =>
             y
               .positional("ref", { type: "string", demandOption: true })
-              .option("content", { type: "string", alias: "c", demandOption: true, describe: "HTML content to append" }),
+              .option("content", { type: "string", alias: "c", demandOption: true, describe: "HTML content to append" })
+              .option("md", { type: "boolean", describe: "Treat --content as Markdown and convert it to HTML" }),
           async (argv) => {
             await graph.appendToPage(
-              (argv.ref as string).replace(/^["']|["']$/g, ""),
-              argv.content as string
+              normalizeRef(argv.ref as string)!,
+              renderHtmlContent(argv.content as string, argv.md as boolean | undefined)
             );
             console.log("Appended to page.");
+          }
+        )
+        .command(
+          "update <ref>",
+          "Apply a raw Graph page PATCH command (accepts a page ID or a OneNote URL)",
+          (y) =>
+            y
+              .positional("ref", { type: "string", demandOption: true })
+              .option("target", {
+                type: "string",
+                alias: "t",
+                demandOption: true,
+                describe: 'Target selector: "body", "title", or "#element-id"',
+              })
+              .option("action", {
+                type: "string",
+                alias: "a",
+                choices: pageUpdateActions,
+                demandOption: true,
+                describe: "Patch action",
+              })
+              .option("position", {
+                type: "string",
+                alias: "p",
+                choices: pageInsertPositions,
+                describe: "Required when --action=insert",
+              })
+              .option("content", {
+                type: "string",
+                alias: "c",
+                demandOption: true,
+                describe: "HTML content to apply",
+              })
+              .option("md", { type: "boolean", describe: "Treat --content as Markdown and convert it to HTML" })
+              .check((argv) => {
+                if (argv.action === "insert" && !argv.position) {
+                  throw new Error("--position is required when --action=insert.");
+                }
+                if (argv.action !== "insert" && argv.position) {
+                  throw new Error("--position can only be used when --action=insert.");
+                }
+                return true;
+              }),
+          async (argv) => {
+            const command: graph.PageUpdateCommand = {
+              target: argv.target as string,
+              action: argv.action as graph.PageUpdateCommand["action"],
+              content: renderHtmlContent(argv.content as string, argv.md as boolean | undefined),
+            };
+            if (argv.position) {
+              command.position = argv.position as graph.PageUpdateCommand["position"];
+            }
+            await graph.updatePage(normalizeRef(argv.ref as string)!, [command]);
+            console.log("Page updated.");
           }
         )
         .demandCommand(1),
