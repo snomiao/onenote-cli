@@ -53,24 +53,32 @@ onenote auth whoami         # Show current user
 onenote auth setup          # Print setup instructions
 onenote auth logout         # Clear tokens
 
-# Notebooks
+# Notebooks  (<ref> = name, path, Graph ID, or URL)
 onenote notebooks list
-onenote notebooks get <id>
+onenote notebooks get <ref>
 onenote notebooks create <name>
 
 # Sections (falls back to OneDrive if Graph API is blocked)
-onenote sections list [<notebook-id-or-url>]
-onenote sections create -n <notebook-id-or-url> --name <name>
+onenote sections list [<ref>]                 # e.g. "sno@ja" or notebook ID/URL
+onenote sections create -n <ref> --name <name>
 
-# Pages
-onenote pages list [<section-id-or-url>]
-onenote pages get <page-id-or-url>
-onenote pages content <page-id-or-url>
-onenote pages create -s <section-id-or-url> -t <title> -b "<html>"
-onenote pages create -s <section-id-or-url> -t <title> --body "# Heading" --md
-onenote pages append <page-id-or-url> -c "- bullet" --md
-onenote pages update <page-id-or-url> --target "#element-id" --action replace -c "<p>new</p>"
-onenote pages delete <page-id-or-url>
+# Pages  (<ref> = "nb/sec/page", page ID, or OneNote URL)
+onenote pages list [<ref>]                    # e.g. "sno@ja/visa@ja"
+onenote pages get <ref>
+onenote pages content <ref>                   # deprecated, use 'read --html'
+onenote pages create -s <ref> -t <title> -b "<html>"
+onenote pages create -s <ref> -t <title> --body "# Heading" --md
+onenote pages append <ref> -c "- bullet" --md
+onenote pages update <ref> --target "#element-id" --action replace -c "<p>new</p>"
+onenote pages delete <ref>
+
+# Top-level shortcuts
+onenote ls [<path>]                           # auto: notebooks / sections / pages
+onenote read <ref>                            # render page (or list section/notebook)
+onenote open <ref>                            # open in browser
+onenote mv <ref> <new-name>                   # rename (depth inferred)
+onenote rm <ref>                              # delete page
+onenote init                                  # first-run setup
 
 # Search
 onenote sync                # Download and cache all sections

@@ -402,6 +402,9 @@ yargs(hideBin(process.argv))
                 if (argv.action !== "insert" && argv.position) {
                   throw new Error("--position can only be used when --action=insert.");
                 }
+                if (argv.md && argv.target === "title") {
+                  throw new Error("--md cannot be used with --target=title (titles are plain text).");
+                }
                 return true;
               }),
           async (argv) => {
@@ -499,8 +502,13 @@ yargs(hideBin(process.argv))
         url = page?.links?.oneNoteWebUrl?.href ?? page?.links?.oneNoteClientUrl?.href;
       }
       if (!url) throw new Error(`Could not resolve URL for '${ref}'.`);
-      const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
-      const proc = Bun.spawn([opener, url], { stdout: "inherit", stderr: "inherit" });
+      const openerArgs =
+        process.platform === "darwin"
+          ? ["open", url]
+          : process.platform === "win32"
+            ? ["cmd", "/c", "start", "", url]
+            : ["xdg-open", url];
+      const proc = Bun.spawn(openerArgs, { stdout: "inherit", stderr: "inherit" });
       await proc.exited;
       console.log(url);
     }
