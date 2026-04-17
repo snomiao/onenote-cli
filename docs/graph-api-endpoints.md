@@ -25,6 +25,13 @@ https://graph.microsoft.com/v1.0/me/onenote/
 | GET | `/me/onenote/sections/{id}` | Get a section by ID |
 | POST | `/me/onenote/notebooks/{id}/sections` | Create a section (`{ "displayName": "..." }`) |
 
+`onenote-cli` also resolves SharePoint notebook URLs to the site-scoped equivalent:
+
+```http
+GET /sites/{site-id}/onenote/notebooks/{id}/sections
+POST /sites/{site-id}/onenote/notebooks/{id}/sections
+```
+
 ## Section Groups
 
 | Method | Endpoint | Description |
@@ -41,7 +48,19 @@ https://graph.microsoft.com/v1.0/me/onenote/
 | GET | `/me/onenote/pages/{id}` | Get page metadata |
 | GET | `/me/onenote/pages/{id}/content` | Get page HTML content |
 | POST | `/me/onenote/sections/{id}/pages` | Create a page (Content-Type: text/html) |
+| PATCH | `/me/onenote/pages/{id}/content` | Update page content with OneNote PATCH commands |
 | DELETE | `/me/onenote/pages/{id}` | Delete a page |
+
+For SharePoint page or section URLs, the CLI resolves the corresponding site-scoped endpoints automatically:
+
+```http
+GET /sites/{site-id}/onenote/sections/{id}/pages
+GET /sites/{site-id}/onenote/pages/{id}
+GET /sites/{site-id}/onenote/pages/{id}/content
+POST /sites/{site-id}/onenote/sections/{id}/pages
+PATCH /sites/{site-id}/onenote/pages/{id}/content
+DELETE /sites/{site-id}/onenote/pages/{id}
+```
 
 ## Search
 
@@ -66,6 +85,23 @@ Content-Type: text/html
     <p>Page content here</p>
   </body>
 </html>
+```
+
+## Updating Pages
+
+Page updates are sent as JSON PATCH commands to `/pages/{id}/content`:
+
+```http
+PATCH /me/onenote/pages/{page-id}/content
+Content-Type: application/json
+
+[
+  {
+    "target": "#element-id",
+    "action": "replace",
+    "content": "<p>Updated content</p>"
+  }
+]
 ```
 
 ## Required Permissions (Delegated)
