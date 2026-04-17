@@ -728,6 +728,16 @@ yargs(hideBin(process.argv))
     () => {}
   )
 
+  .epilogue(
+    [
+      "<ref> accepts any of:",
+      "  - path        e.g. 'NotebookA', 'NotebookA/SectionB', 'NotebookA/SectionB/PageC'",
+      "  - Graph ID    e.g. '1-abc123...' (page) or '0-abc123...' (notebook/section)",
+      "  - OneNote URL e.g. https://onedrive.live.com/redir?...",
+      "",
+      "Note: path segments must be unique — duplicates throw; rename or use ID/URL.",
+    ].join("\n")
+  )
   .strict()
   .help()
   .alias("h", "help")

@@ -1,18 +1,16 @@
 # onenote-cli
 
-**Make your OneNote notebooks survive in the age of AI.**
+**Your OneNote, in a terminal. Fluent with AI.**
 
-A CLI that lets AI agents (and humans) search, read, and operate your OneNote — with full-text page-level search and deep links that open directly to the matching page.
+```bash
+onenote ls                                  # browse your notebooks
+onenote read NotebookA/SectionB/PageC       # read a page, rendered as markdown
+onenote search "visa interview"             # find any word, anywhere
+onenote open NotebookA/SectionB             # jump back into OneNote Online
+onenote append NotebookA/SectionB/today -c "- met with alex" --md
+```
 
-## Features
-
-- **Page-level search** — search inside all your OneNote pages, get results with URLs that open directly to the matching page in OneNote Online
-- **Notebooks / Sections / Pages** — list, get, create, update, delete via Graph API
-- **5,000-item workaround** — when Graph OneNote API is blocked by the SharePoint document library limit, automatically falls back to OneDrive file API + local binary parsing
-- **Local cache** — downloads `.one` files, extracts text (UTF-8 + UTF-16LE), builds a searchable index
-- **Official OneNote URLs** — resolves page GUIDs via `GET /me/onenote/sections/0-{guid}/pages` to get URLs that bypass OneNote Online's session caching
-- **Device code flow auth** — works in SSH / headless / terminal environments
-- **Cross-directory** — `.env.local` and cache are loaded from the package directory, so `onenote` works from any working directory
+Every page, every section, every word — addressable by path, openable from a prompt, pipe-able into anything.
 
 ## Install
 
@@ -58,15 +56,13 @@ onenote notebooks list
 onenote notebooks get <ref>
 onenote notebooks create <name>
 
-# Sections (falls back to OneDrive if Graph API is blocked)
-onenote sections list [<ref>]                 # e.g. "sno@ja" or notebook ID/URL
+# Sections
+onenote sections list [<ref>]                 # e.g. "NotebookA"
 onenote sections create -n <ref> --name <name>
 
 # Pages  (<ref> = "nb/sec/page", page ID, or OneNote URL)
-onenote pages list [<ref>]                    # e.g. "sno@ja/visa@ja"
+onenote pages list [<ref>]                    # e.g. "NotebookA/SectionB"
 onenote pages get <ref>
-onenote pages content <ref>                   # deprecated, use 'read --html'
-onenote pages create -s <ref> -t <title> -b "<html>"
 onenote pages create -s <ref> -t <title> --body "# Heading" --md
 onenote pages append <ref> -c "- bullet" --md
 onenote pages update <ref> --target "#element-id" --action replace -c "<p>new</p>"
@@ -101,73 +97,19 @@ $ onenote search project plan
 
 Clicking the URL opens OneNote Online directly on the matching page.
 
-## How Search Works
-
-1. `onenote sync` downloads all `.one` section files from OneDrive
-2. Extracts page GUIDs from the MS-ONESTORE binary format
-3. Fetches official page URLs via OneNote Graph API (`/me/onenote/sections/0-{guid}/pages`)
-4. On search, scans the binary for matches (UTF-8 and UTF-16LE), attributes each match to the correct page via context-based anchor lookup
-5. Returns results with official OneNote URLs that navigate directly to the page
-
-See [docs/local-search-architecture.md](docs/local-search-architecture.md) for the full technical design.
-
-## API Permissions Required
-
-| Permission | Type | Purpose |
-|---|---|---|
-| `Notes.Read` | Delegated | Read notebooks |
-| `Notes.ReadWrite` | Delegated | Create/modify pages |
-| `Notes.ReadWrite.All` | Delegated | Access all notebooks |
-| `Files.Read` | Delegated | Download .one files from OneDrive |
-| `Files.Read.All` | Delegated | Access all accessible files |
-| `Sites.Read.All` | Delegated | Search via SharePoint listItem API |
-
-## File Structure
-
-```
-src/
-  index.ts      CLI entry point (yargs)
-  auth.ts       MSAL device code flow + .env.local auto-loader
-  graph.ts      Microsoft Graph API client (OneNote + OneDrive)
-  cache.ts      Local cache, .one binary parser, page GUID extraction
-docs/
-  setup.md                     Azure AD registration walkthrough
-  local-search-architecture.md Technical design of local search
-  graph-api-endpoints.md       OneNote Graph API reference
-  development-notes.md         Lessons learned
-  onen0te-cli-analysis.md      Competitor UX analysis
-```
-
-## Configuration
-
-| Source | Location | Priority |
-|---|---|---|
-| `.env.local` | Package root (auto-loaded) | Highest |
-| `~/.onenote-cli/config.json` | Home directory | Fallback |
-| `ONENOTE_CLIENT_ID` env var | Shell environment | Overrides all |
-
-Cache location: `<package>/.onenote/cache/` (override with `ONENOTE_CACHE_DIR`)
+For architecture, permissions, and internals see [docs/](docs/).
 
 ## Roadmap
 
 ### ✅ v0.1 — Foundation (shipped)
 
-- MSAL device code flow authentication with auto token refresh
-- Notebooks / sections / section-groups / pages CRUD
-- 5,000-item SharePoint limit workaround via OneDrive fallback
-- Local `.one` binary cache with UTF-8 + UTF-16LE page extraction
-- Page GUID extraction from binary
-- Official OneNote page URL resolution via Graph API
+- Browse, read, edit, create, delete — notebooks, sections, pages
+- Path refs (`Notebook/Section/Page`) across every command
 - Full-text page-level search with context snippets
-- `onenote read <url>` — page / section / notebook tree view
-- Page editing via `rename` / `append` / `update` / `delete`
-- URL-or-ID refs for `sections list`, `pages list`, `pages get`, `pages content`, and page write commands
-- Markdown input for `pages create` / `append` / `update` via `--md`
-- Incremental sync (compares `lastModifiedDateTime`)
-- Size limit for sync (skips sections > 200MB)
-- `.env.local` auto-load from package dir (cross-directory support)
-- Markdown links in non-TTY, OSC 8 hyperlinks in TTY
-- Published to npm, installable as AI agent skill via `npx skills add snomiao/onenote-cli`
+- Incremental local cache, works on huge libraries
+- Markdown-in / markdown-out for reads and writes
+- Clickable links in the terminal
+- Installable as an AI agent skill
 
 ### 🚀 v0.2 — AI Native
 
@@ -246,6 +188,13 @@ Unix composition, scripting, automation.
 ## Contributing
 
 Pick any unchecked roadmap item. Open an issue to claim it, or just ship a PR.
+
+## Support
+
+Love this tool? Help keep it moving:
+
+- 💛 [Sponsor / donate](https://github.com/snomiao) — options on my homepage
+- 🤖 Gift AI credits (Claude / OpenAI / etc.) — this project is built with AI and every token goes straight back into shipping features
 
 ## License
 

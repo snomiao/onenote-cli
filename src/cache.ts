@@ -1,3 +1,4 @@
+import prettyBytes from "pretty-bytes";
 import { getAccessToken } from "./auth";
 import { listNotebooks } from "./graph";
 import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
@@ -439,16 +440,25 @@ export async function syncCache(
   const notebooks = await listNotebooks();
   log(`Found ${notebooks.length} notebooks`);
 
-  // Collect all sections across notebooks for progress tracking
-  const allSections: { nb: any; sec: any; nbDir: string; cachePath: string }[] = [];
-  for (const nb of notebooks) {
-    const nbDir = join(CACHE_DIR, nb.displayName);
-    await ensureDir(nbDir);
-    const sections = await listSectionFiles(nb);
-    for (const sec of sections) {
-      allSections.push({ nb, sec, nbDir, cachePath: join(nbDir, `${sec.name}.json`) });
-    }
-  }
+  // Collect all sections across notebooks for progress tracking.
+  // Sync smaller sections first so quick wins land early and huge sections
+  // don't block progress.
+  const sectionsByNotebook = await Promise.all(
+    notebooks.map(async (nb) => {
+      const nbDir = join(CACHE_DIR, nb.displayName);
+      await ensureDir(nbDir);
+      const sections = await listSectionFiles(nb);
+      return sections.map((sec) => ({
+        nb,
+        sec,
+        nbDir,
+        cachePath: join(nbDir, `${sec.name}.json`),
+      }));
+    })
+  );
+  const allSections = sectionsByNotebook
+    .flat()
+    .toSorted((a, b) => (a.sec.size ?? 0) - (b.sec.size ?? 0));
 
   let downloaded = 0;
   let skipped = 0;
@@ -469,16 +479,8 @@ export async function syncCache(
         // No cache or unreadable — download
       }
 
-      // Skip sections larger than 200MB (too slow to download/parse)
-      const MAX_SECTION_SIZE = 200 * 1024 * 1024;
-      if (sec.size > MAX_SECTION_SIZE) {
-        log(`  [skip] ${nb.displayName}/${sec.name} (${(sec.size / 1024 / 1024).toFixed(0)}MB > 200MB limit)`);
-        skipped++;
-        continue;
-      }
-
       const progress = `[${downloaded + skipped + 1}/${total}]`;
-      const sizeStr = sec.size ? ` (${(sec.size / 1024).toFixed(0)}KB)` : "";
+      const sizeStr = sec.size ? ` (${prettyBytes(sec.size, { binary: true })})` : "";
       log(`  ${progress} ${nb.displayName}/${sec.name}${sizeStr}`);
       const buf = await downloadSection(sec.drivePath);
       if (!buf) {
