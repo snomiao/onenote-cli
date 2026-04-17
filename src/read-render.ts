@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { mkdir, stat, writeFile } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { getAccessToken } from "./auth";
 
+const PKG_ROOT = dirname(import.meta.dir);
 const READ_ASSET_DIR = process.env.ONENOTE_READ_ASSET_DIR
-  || join(process.cwd(), ".onenote", "assets");
+  || join(PKG_ROOT, ".onenote", "assets");
 
 type ResourceReference = {
   alt: string;
@@ -234,11 +235,127 @@ async function resolveResourceTargets(html: string) {
   return byUrl;
 }
 
+function stripTagsInline(html: string): string {
+  return decodeHtmlEntities(
+    html
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/<\/(p|div|li|h[1-6])>/gi, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+function maskNestedTables(html: string): { masked: string; slots: string[] } {
+  const slots: string[] = [];
+  let out = "";
+  let i = 0;
+  while (i < html.length) {
+    const start = html.toLowerCase().indexOf("<table", i);
+    if (start === -1) { out += html.slice(i); break; }
+    out += html.slice(i, start);
+    let depth = 0;
+    let j = start;
+    while (j < html.length) {
+      const lower = html.slice(j).toLowerCase();
+      if (lower.startsWith("<table")) {
+        depth++;
+        const close = html.indexOf(">", j);
+        if (close === -1) { j = html.length; break; }
+        j = close + 1;
+      } else if (lower.startsWith("</table>")) {
+        depth--;
+        j += 8;
+        if (depth === 0) break;
+      } else {
+        j++;
+      }
+    }
+    const idx = slots.length;
+    slots.push(html.slice(start, j));
+    out += `\uE000TABLE${idx}\uE000`;
+    i = j;
+  }
+  return { masked: out, slots };
+}
+
+function parseRowCells(rowHtml: string): string[] {
+  return [...rowHtml.matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((m) => m[1] ?? "");
+}
+
+function renderCell(cellHtml: string): string {
+  const { masked, slots } = maskNestedTables(cellHtml);
+  const flattened = slots.map((t) => {
+    const stripped = t.replace(/^<table\b[^>]*>/i, "").replace(/<\/table>\s*$/i, "");
+    const inner = maskNestedTables(stripped);
+    const rows = [...inner.masked.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map((m) => m[1] ?? "");
+    return rows.map((r) => parseRowCells(r).map((c) => renderCell(c.replace(/\uE000TABLE(\d+)\uE000/g, (_, n) => inner.slots[Number(n)] ?? ""))).filter(Boolean).join(" / ")).filter(Boolean).join(" ; ");
+  });
+  let text = stripTagsInline(masked);
+  text = text.replace(/\uE000TABLE(\d+)\uE000/g, (_, n) => ` ${flattened[Number(n)] ?? ""} `);
+  return text.replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
+}
+
+function renderTable(tableHtml: string): string {
+  const stripped = tableHtml.replace(/^<table\b[^>]*>/i, "").replace(/<\/table>\s*$/i, "");
+  const { masked, slots } = maskNestedTables(stripped);
+  const rows = [...masked.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map((m) => {
+    const rowMasked = m[1] ?? "";
+    return parseRowCells(rowMasked).map((c) => renderCell(c.replace(/\uE000TABLE(\d+)\uE000/g, (_, n) => slots[Number(n)] ?? "")));
+  });
+  if (rows.length === 0) return "";
+  const width = Math.max(...rows.map((r) => r.length));
+  const padded = rows.map((r) => [...r, ...Array(width - r.length).fill("")]);
+  const header = padded[0]!.map((c) => c || " ");
+  const body = padded.slice(1);
+  const lines = [
+    `| ${header.join(" | ")} |`,
+    `| ${header.map(() => "---").join(" | ")} |`,
+    ...body.map((r) => `| ${r.map((c) => c || " ").join(" | ")} |`),
+  ];
+  return `\n\n${lines.join("\n")}\n\n`;
+}
+
+function replaceTopLevelTables(html: string): string {
+  let out = "";
+  let i = 0;
+  while (i < html.length) {
+    const start = html.toLowerCase().indexOf("<table", i);
+    if (start === -1) {
+      out += html.slice(i);
+      break;
+    }
+    out += html.slice(i, start);
+    let depth = 0;
+    let j = start;
+    while (j < html.length) {
+      const lower = html.slice(j).toLowerCase();
+      if (lower.startsWith("<table")) {
+        depth++;
+        const close = html.indexOf(">", j);
+        if (close === -1) { j = html.length; break; }
+        j = close + 1;
+      } else if (lower.startsWith("</table>")) {
+        depth--;
+        j += 8;
+        if (depth === 0) break;
+      } else {
+        j++;
+      }
+    }
+    out += renderTable(html.slice(start, j));
+    i = j;
+  }
+  return out;
+}
+
 export async function renderHtmlForRead(
   html: string,
   options?: { downloadAssets?: boolean }
 ): Promise<string> {
-  let rendered = html;
+  let rendered = replaceTopLevelTables(html);
   const replacements = options?.downloadAssets === false
     ? new Map<string, { displayPath: string; mediaType?: string }>()
     : await resolveResourceTargets(html);

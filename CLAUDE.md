@@ -21,4 +21,13 @@
 - Use `import.meta.dir` for package-relative paths (env, cache)
 - Conventional commits for all commit messages
 - `.env.local` at package root for credentials (auto-loaded)
-- Cache at `<package>/.onenote/cache/`
+
+## Cache paths
+All CLI caches live at **package root** (`<pkg>/.onenote/`), NOT cwd. The CLI is project-agnostic — caches must survive across `cd` and not pollute user directories. Resolve via `dirname(import.meta.dir)` in `src/*.ts`.
+
+- `<pkg>/.onenote/cache/<notebook>/<section>.{json,one}` — full section sync (`onenote sync`)
+- `<pkg>/.onenote/notebooks.json` — notebook metadata list (24h TTL), used for name→id resolution
+- `<pkg>/.onenote/assets/` — downloaded resource files (images/PDFs) referenced by `onenote read`
+- `~/.onenote-cli/` — user-level state (MSAL token cache, config)
+
+Never use `process.cwd()` for cache paths. Override via env: `ONENOTE_CACHE_DIR`, `ONENOTE_READ_ASSET_DIR`.
