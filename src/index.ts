@@ -443,11 +443,19 @@ yargs(hideBin(process.argv))
     async (argv) => {
       const ref = normalizeRef(argv.ref as string)!;
       const name = argv.name as string;
-      const segments = ref.includes("://") ? [] : ref.split("/").filter(Boolean);
-      if (!ref.includes("://") && segments.length === 1) {
+      const isUrl = ref.includes("://");
+      const segments = isUrl ? [] : ref.split("/").filter(Boolean);
+      const isGraphId = !isUrl && /^[0-9]-[0-9a-f-]{10,}$/i.test(ref);
+      if (isUrl || isGraphId) {
+        // Raw IDs/URLs — ambiguous shape. Require user to disambiguate via subcommand.
+        throw new Error(
+          "mv with a raw ID/URL is ambiguous. Use 'notebooks rename', 'sections rename', or 'pages rename' instead."
+        );
+      }
+      if (segments.length === 1) {
         const nb = await graph.renameNotebook(ref, name);
         console.log("Notebook renamed to:", nb.displayName);
-      } else if (!ref.includes("://") && segments.length === 2) {
+      } else if (segments.length === 2) {
         const sec = await graph.renameSection(ref, name);
         console.log("Section renamed to:", sec.displayName);
       } else {
@@ -464,11 +472,23 @@ yargs(hideBin(process.argv))
     (y) => y.positional("ref", { type: "string", demandOption: true }),
     async (argv) => {
       const ref = normalizeRef(argv.ref as string)!;
-      const segments = ref.includes("://") ? [] : ref.split("/").filter(Boolean);
+      const isUrl = ref.includes("://");
+      const segments = isUrl ? [] : ref.split("/").filter(Boolean);
+      const isGraphId = !isUrl && /^[0-9]-[0-9a-f-]{10,}$/i.test(ref);
       let url: string | undefined;
-      if (ref.includes("://")) {
+      if (isUrl) {
         url = ref;
-      } else if (segments.length <= 1) {
+      } else if (isGraphId) {
+        // Page IDs start with "1-"; notebook/section IDs start with "0-" (ambiguous).
+        if (ref.startsWith("1-")) {
+          const page = await graph.getPage(ref);
+          url = page?.links?.oneNoteWebUrl?.href ?? page?.links?.oneNoteClientUrl?.href;
+        } else {
+          throw new Error(
+            "open with a raw 0-* ID is ambiguous (notebook or section). Use 'notebooks get' / 'sections get' to fetch the URL, or pass a path."
+          );
+        }
+      } else if (segments.length === 1) {
         const nb = await graph.getNotebook(ref);
         url = nb?.links?.oneNoteWebUrl?.href ?? nb?.links?.oneNoteClientUrl?.href;
       } else if (segments.length === 2) {
@@ -614,13 +634,8 @@ yargs(hideBin(process.argv))
     "First-run setup: verify client ID and login",
     () => {},
     async () => {
-      const clientId = process.env.ONENOTE_CLIENT_ID;
-      if (!clientId) {
-        console.log("No ONENOTE_CLIENT_ID found. Run 'onenote auth setup' for instructions,");
-        console.log("then set it in .env.local or ~/.onenote-cli/config.json.");
-        return;
-      }
-      console.log(green("Client ID detected. Signing in..."));
+      // getAccessToken reads ONENOTE_CLIENT_ID from env OR ~/.onenote-cli/config.json
+      // and prints a setup guide if the clientId is missing/placeholder.
       const { getAccessToken } = await import("./auth");
       await getAccessToken();
       await whoami();

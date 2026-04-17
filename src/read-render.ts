@@ -355,12 +355,13 @@ export async function renderHtmlForRead(
   html: string,
   options?: { downloadAssets?: boolean }
 ): Promise<string> {
-  let rendered = replaceTopLevelTables(html);
   const replacements = options?.downloadAssets === false
     ? new Map<string, { displayPath: string; mediaType?: string }>()
     : await resolveResourceTargets(html);
 
-  rendered = rendered.replace(/<img\b[^>]*>/gi, (tag) => {
+  // Convert <img>/<object> to markdown BEFORE table rendering so assets inside
+  // table cells survive stripTagsInline() during cell flattening.
+  let rendered = html.replace(/<img\b[^>]*>/gi, (tag) => {
     const url = extractAttr(tag, "data-fullres-src") || extractAttr(tag, "src");
     if (!url) return "";
     const alt = escapeMarkdownText(decodeHtmlEntities(extractAttr(tag, "alt")?.trim() || "image"));
@@ -377,6 +378,8 @@ export async function renderHtmlForRead(
     const target = replacements.get(url)?.displayPath || url;
     return `\n\n[${label}](${target})\n\n`;
   });
+
+  rendered = replaceTopLevelTables(rendered);
 
   return decodeHtmlEntities(
     rendered
