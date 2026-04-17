@@ -1,3 +1,5 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { getAccessToken } from "./auth";
 import {
   isOneNoteResourceUrl,
@@ -6,6 +8,95 @@ import {
 } from "./read-render";
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
+
+const PKG_ROOT = dirname(import.meta.dir);
+const PKG_CACHE_DIR = join(PKG_ROOT, ".onenote");
+const NOTEBOOK_CACHE_PATH = join(PKG_CACHE_DIR, "notebooks.json");
+const NOTEBOOK_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+type CachedNotebook = {
+  id: string;
+  displayName: string;
+  webUrl?: string;
+  lastModifiedDateTime?: string;
+};
+
+async function loadNotebookCache(): Promise<CachedNotebook[] | null> {
+  try {
+    const raw = await readFile(NOTEBOOK_CACHE_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!parsed?.cachedAt || Date.now() - Date.parse(parsed.cachedAt) > NOTEBOOK_CACHE_TTL_MS) return null;
+    return parsed.notebooks as CachedNotebook[];
+  } catch {
+    return null;
+  }
+}
+
+async function saveNotebookCache(notebooks: CachedNotebook[]): Promise<void> {
+  await mkdir(PKG_CACHE_DIR, { recursive: true });
+  await writeFile(
+    NOTEBOOK_CACHE_PATH,
+    JSON.stringify({ cachedAt: new Date().toISOString(), notebooks }, null, 2)
+  );
+}
+
+async function lookupSectionFromSyncCache(
+  notebookName: string,
+  sectionName: string
+): Promise<{ id: string; displayName: string; links?: any } | null> {
+  try {
+    const file = join(PKG_CACHE_DIR, "cache", notebookName, `${sectionName}.json`);
+    const raw = await readFile(file, "utf8");
+    const data = JSON.parse(raw);
+    const url: string = data.webUrl ?? "";
+    const m = decodeURIComponent(url).match(/sourcedoc=\{([0-9a-f-]+)\}/i);
+    if (!m) return null;
+    return { id: `0-${m[1]!.toLowerCase()}`, displayName: data.section ?? sectionName };
+  } catch {
+    return null;
+  }
+}
+
+async function lookupPageFromSyncCache(
+  notebookName: string,
+  sectionName: string,
+  pageTitle: string
+): Promise<{ id: string; title: string; links?: any } | null> {
+  try {
+    const file = join(PKG_CACHE_DIR, "cache", notebookName, `${sectionName}.json`);
+    const raw = await readFile(file, "utf8");
+    const data = JSON.parse(raw);
+    const pages = (data.officialPages ?? []) as Array<{ guid: string; title: string; webUrl?: string }>;
+    const matches = pages.filter((p) => p.title === pageTitle);
+    if (matches.length === 0) return null;
+    if (matches.length > 1) {
+      const lines = matches.map((p) => `  - ${p.guid} ${p.webUrl ?? ""}`).join("\n");
+      throw new Error(
+        `Multiple pages titled '${pageTitle}' in '${notebookName}/${sectionName}' (${matches.length} matches). Please rename for uniqueness or use URL/ID.\nCandidates:\n${lines}`
+      );
+    }
+    return { id: `0-${matches[0]!.guid.toLowerCase()}`, title: matches[0]!.title };
+  } catch (err: any) {
+    if (err?.message?.startsWith("Multiple pages")) throw err;
+    return null;
+  }
+}
+
+async function getCachedNotebooks(force = false): Promise<CachedNotebook[]> {
+  if (!force) {
+    const cached = await loadNotebookCache();
+    if (cached) return cached;
+  }
+  const fresh = await listNotebooks();
+  const slim: CachedNotebook[] = fresh.map((nb: any) => ({
+    id: nb.id,
+    displayName: nb.displayName,
+    webUrl: nb.links?.oneNoteWebUrl?.href ?? nb.links?.oneNoteClientUrl?.href,
+    lastModifiedDateTime: nb.lastModifiedDateTime,
+  }));
+  await saveNotebookCache(slim);
+  return slim;
+}
 
 interface GraphResponse<T> {
   value: T[];
@@ -74,8 +165,9 @@ export async function listNotebooks() {
   return data.value;
 }
 
-export async function getNotebook(id: string) {
-  const res = await graphFetch(`/me/onenote/notebooks/${id}`);
+export async function getNotebook(ref: string) {
+  const { apiBase, notebookId } = await resolveNotebookRef(ref);
+  const res = await graphFetch(`${apiBase}/onenote/notebooks/${notebookId}`);
   return res.json();
 }
 
@@ -122,8 +214,9 @@ export async function listSections(notebookId?: string) {
   }
 }
 
-export async function getSection(id: string) {
-  const res = await graphFetch(`/me/onenote/sections/${id}`);
+export async function getSection(ref: string) {
+  const { apiBase, sectionId } = await resolveSectionRef(ref);
+  const res = await graphFetch(`${apiBase}/onenote/sections/${sectionId}`);
   return res.json();
 }
 
@@ -232,8 +325,9 @@ export async function appendToPage(urlOrId: string, htmlContent: string) {
 /**
  * Rename a section.
  */
-export async function renameSection(sectionId: string, newName: string) {
-  const res = await graphFetch(`/me/onenote/sections/${sectionId}`, {
+export async function renameSection(ref: string, newName: string) {
+  const { apiBase, sectionId } = await resolveSectionRef(ref);
+  const res = await graphFetch(`${apiBase}/onenote/sections/${sectionId}`, {
     method: "PATCH",
     body: JSON.stringify({ displayName: newName }),
   });
@@ -243,8 +337,9 @@ export async function renameSection(sectionId: string, newName: string) {
 /**
  * Rename a notebook.
  */
-export async function renameNotebook(notebookId: string, newName: string) {
-  const res = await graphFetch(`/me/onenote/notebooks/${notebookId}`, {
+export async function renameNotebook(ref: string, newName: string) {
+  const { apiBase, notebookId } = await resolveNotebookRef(ref);
+  const res = await graphFetch(`${apiBase}/onenote/notebooks/${notebookId}`, {
     method: "PATCH",
     body: JSON.stringify({ displayName: newName }),
   });
@@ -524,11 +619,152 @@ async function resolveSharePointPage(
   return mapOne(match ?? data.value[0]);
 }
 
+function looksLikeNotebookId(s: string): boolean {
+  return /^[0-9]-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+
+function looksLikeGraphId(s: string): boolean {
+  return /^[0-9]-[0-9a-f-]{10,}$/i.test(s);
+}
+
+export type ResolvedPath = {
+  apiBase: string;
+  notebookId?: string;
+  sectionId?: string;
+  pageId?: string;
+  notebookName?: string;
+  sectionName?: string;
+  pageTitle?: string;
+};
+
+function uniqueOrThrow<T extends { id: string; displayName?: string; title?: string; links?: any }>(
+  items: T[],
+  kind: "notebook" | "section" | "page",
+  name: string,
+  parent?: string
+): T {
+  if (items.length === 0) {
+    throw new Error(`${kind} '${name}'${parent ? ` in '${parent}'` : ""} not found.`);
+  }
+  if (items.length > 1) {
+    const ctx = parent ? ` in '${parent}'` : "";
+    const lines = items.map((i) => {
+      const label = (i as any).displayName ?? (i as any).title ?? "(untitled)";
+      const url = i.links?.oneNoteWebUrl?.href ?? i.links?.oneNoteClientUrl?.href ?? "";
+      return `  - ${i.id}${url ? ` ${url}` : ""} [${label}]`;
+    });
+    throw new Error(
+      `Multiple ${kind}s named '${name}'${ctx} (${items.length} matches). Please rename for uniqueness or use URL/ID.\nCandidates:\n${lines.join("\n")}`
+    );
+  }
+  return items[0]!;
+}
+
+async function resolveByPath(path: string): Promise<ResolvedPath> {
+  const segments = path.split("/").filter((s) => s.length > 0);
+  if (segments.length === 0) throw new Error("Empty path.");
+  if (segments.length > 3) throw new Error(`Path too deep (max 3 segments): ${path}`);
+
+  // Segment 1: notebook
+  const nbName = segments[0]!;
+  const notebooks = (await getCachedNotebooks()).filter((n) => n.displayName === nbName);
+  if (notebooks.length === 0) {
+    const fresh = (await getCachedNotebooks(true)).filter((n) => n.displayName === nbName);
+    if (fresh.length === 0) {
+      throw new Error(`Notebook '${nbName}' not found. Run 'onenote notebooks list' to see available names.`);
+    }
+    notebooks.push(...fresh);
+  }
+  const nb = uniqueOrThrow(
+    notebooks.map((n) => ({ id: n.id, displayName: n.displayName, links: { oneNoteWebUrl: { href: n.webUrl } } })),
+    "notebook",
+    nbName
+  );
+  const nbRef = nb.links.oneNoteWebUrl.href
+    ? await resolveNotebookRef(nb.links.oneNoteWebUrl.href)
+    : { apiBase: "/me", notebookId: nb.id, displayName: nb.displayName };
+
+  if (segments.length === 1) {
+    return { apiBase: nbRef.apiBase, notebookId: nbRef.notebookId, notebookName: nbRef.displayName };
+  }
+
+  // Segment 2: section — try site-scoped filter; fall back to sync cache if 5000-limit error.
+  const sectionName = segments[1]!;
+  let section: { id: string; displayName: string; links?: any };
+  try {
+    const sectRes = await graphFetch(
+      `${nbRef.apiBase}/onenote/sections?$filter=displayName eq '${odataEscape(sectionName)}'&$expand=parentNotebook($select=id)&$select=id,displayName,links&$top=50`
+    );
+    const sectData: GraphResponse<any> = await sectRes.json();
+    const candidates = (sectData.value ?? []).filter(
+      (s: any) => !s.parentNotebook?.id || s.parentNotebook.id === nbRef.notebookId
+    );
+    section = uniqueOrThrow(candidates, "section", sectionName, nbName);
+  } catch (err: any) {
+    if (err?.message?.startsWith("Multiple sections") || err?.message?.startsWith("section ")) throw err;
+    if (!is5000LimitError(err) && err?.statusCode !== 404) throw err;
+    const fromCache = await lookupSectionFromSyncCache(nbName, sectionName);
+    if (!fromCache) {
+      throw new Error(
+        `Section '${sectionName}' in '${nbName}' not resolvable: site exceeds Graph API 5000-item limit. Run 'onenote sync' first, or pass a full URL.`
+      );
+    }
+    section = fromCache;
+  }
+
+  if (segments.length === 2) {
+    return {
+      apiBase: nbRef.apiBase,
+      notebookId: nbRef.notebookId,
+      sectionId: section.id,
+      notebookName: nbRef.displayName,
+      sectionName: section.displayName,
+    };
+  }
+
+  // Segment 3: page
+  const pageTitle = segments[2]!;
+  let page: { id: string; title: string; links?: any };
+  try {
+    const pageRes = await graphFetch(
+      `${nbRef.apiBase}/onenote/sections/${section.id}/pages?$filter=title eq '${odataEscape(pageTitle)}'&$select=id,title,links&$top=50`
+    );
+    const pageData: GraphResponse<any> = await pageRes.json();
+    page = uniqueOrThrow(pageData.value ?? [], "page", pageTitle, `${nbName}/${sectionName}`);
+  } catch (err: any) {
+    if (err?.message?.startsWith("Multiple pages") || err?.message?.startsWith("page ")) throw err;
+    if (!is5000LimitError(err) && err?.statusCode !== 404) throw err;
+    const fromCache = await lookupPageFromSyncCache(nbName, sectionName, pageTitle);
+    if (!fromCache) {
+      throw new Error(
+        `Page '${pageTitle}' in '${nbName}/${sectionName}' not resolvable: site exceeds Graph API 5000-item limit. Run 'onenote sync' first, or pass a full URL.`
+      );
+    }
+    page = fromCache;
+  }
+
+  return {
+    apiBase: nbRef.apiBase,
+    notebookId: nbRef.notebookId,
+    sectionId: section.id,
+    pageId: page.id,
+    notebookName: nbRef.displayName,
+    sectionName: section.displayName,
+    pageTitle: page.title,
+  };
+}
+
 async function resolveNotebookRef(
   urlOrId: string
 ): Promise<{ apiBase: string; notebookId: string; displayName?: string }> {
   if (!/^https?:\/\//i.test(urlOrId)) {
-    return { apiBase: "/me", notebookId: urlOrId };
+    if (looksLikeNotebookId(urlOrId)) {
+      return { apiBase: "/me", notebookId: urlOrId };
+    }
+    // Name or path — delegate to path resolver (handles uniqueness)
+    const r = await resolveByPath(urlOrId);
+    if (!r.notebookId) throw new Error(`Path '${urlOrId}' does not resolve to a notebook.`);
+    return { apiBase: r.apiBase, notebookId: r.notebookId, displayName: r.notebookName };
   }
 
   const parsed = parseOneNoteUrl(urlOrId);
@@ -550,6 +786,11 @@ async function resolveSectionRef(
   urlOrId: string
 ): Promise<{ apiBase: string; sectionId: string; displayName?: string }> {
   if (!/^https?:\/\//i.test(urlOrId)) {
+    if (urlOrId.includes("/") || !looksLikeGraphId(urlOrId)) {
+      const r = await resolveByPath(urlOrId);
+      if (!r.sectionId) throw new Error(`Path '${urlOrId}' does not resolve to a section (need notebook/section).`);
+      return { apiBase: r.apiBase, sectionId: r.sectionId, displayName: r.sectionName };
+    }
     return { apiBase: "/me", sectionId: urlOrId };
   }
 
@@ -586,6 +827,11 @@ async function resolvePageRef(
   urlOrId: string
 ): Promise<{ apiBase: string; pageId: string; title?: string; webUrl?: string }> {
   if (!/^https?:\/\//i.test(urlOrId)) {
+    if (urlOrId.includes("/") || !looksLikeGraphId(urlOrId)) {
+      const r = await resolveByPath(urlOrId);
+      if (!r.pageId) throw new Error(`Path '${urlOrId}' does not resolve to a page (need notebook/section/page).`);
+      return { apiBase: r.apiBase, pageId: r.pageId, title: r.pageTitle };
+    }
     return { apiBase: "/me", pageId: urlOrId };
   }
   const parsed = parseOneNoteUrl(urlOrId);
@@ -636,6 +882,7 @@ export async function readOneNoteUrl(
   html?: string;
   pageUrl?: string;
   assetPath?: string;
+  breadcrumb?: string;
 }> {
   if (isOneNoteResourceUrl(url)) {
     const resource = await renderResourceForRead(url);
@@ -645,6 +892,45 @@ export async function readOneNoteUrl(
       content: resource.content,
       assetPath: resource.assetPath,
     };
+  }
+
+  // Non-URL input: treat as path or Graph ID
+  if (!/^https?:\/\//i.test(url)) {
+    const r = await resolveByPath(url);
+    if (r.pageId) {
+      const contentRes = await graphFetch(`${r.apiBase}/onenote/pages/${r.pageId}/content`);
+      const html = await contentRes.text();
+      const crumbs = [r.notebookName, r.sectionName, r.pageTitle].filter(Boolean);
+      return {
+        type: "page",
+        title: r.pageTitle ?? "(untitled)",
+        content: await renderHtmlForRead(html, options),
+        html,
+        breadcrumb: crumbs.length > 1 ? crumbs.join(" / ") : undefined,
+      };
+    }
+    if (r.sectionId) {
+      const pagesRes = await graphFetch(
+        `${r.apiBase}/onenote/sections/${r.sectionId}/pages?$select=id,title&$top=100`
+      );
+      const pagesData: GraphResponse<any> = await pagesRes.json();
+      const pageList = pagesData.value ?? [];
+      const tree = pageList.map((p: any, i: number) => `${i + 1}. ${p.title ?? "(untitled)"}`).join("\n");
+      return {
+        type: "section",
+        title: r.sectionName ?? "Section",
+        content: `${r.sectionName} (${pageList.length} pages)\n\n${tree}`,
+      };
+    }
+    if (r.notebookId) {
+      const sections = await listSections(url);
+      const tree = sections.map((s: any, i: number) => `${i + 1}. ${s.displayName ?? "(untitled)"}`).join("\n");
+      return {
+        type: "notebook",
+        title: r.notebookName ?? "Notebook",
+        content: `${r.notebookName} (${sections.length} sections)\n\n${tree}`,
+      };
+    }
   }
 
   const parsed = parseOneNoteUrl(url);
