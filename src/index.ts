@@ -376,7 +376,9 @@ yargs(hideBin(process.argv))
         .option("html", { type: "boolean", describe: "Output raw HTML instead of text" }),
     async (argv) => {
       const url = (argv.url as string).replace(/^["']|["']$/g, "");
-      const result = await graph.readOneNoteUrl(url);
+      const result = await graph.readOneNoteUrl(url, {
+        downloadAssets: !argv.html,
+      });
 
       if (argv.html && result.html) {
         console.log(result.html);

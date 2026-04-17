@@ -1,4 +1,9 @@
 import { getAccessToken } from "./auth";
+import {
+  isOneNoteResourceUrl,
+  renderHtmlForRead,
+  renderResourceForRead,
+} from "./read-render";
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
@@ -435,27 +440,6 @@ function parseOneNoteUrl(url: string): ParsedOneNoteUrl {
   return { type: "unknown", ...base };
 }
 
-function htmlToText(html: string): string {
-  return html
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<\/h[1-6]>/gi, "\n\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<li[^>]*>/gi, "- ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 // --- Site-scoped resolution (bypasses 5000-item limit on /me/onenote/*) ---
 
 const siteIdCache = new Map<string, string>();
@@ -642,13 +626,27 @@ export async function listSectionPagesByGuid(
  * - Section URL → returns page list (tree view)
  * - Notebook URL → returns section list
  */
-export async function readOneNoteUrl(url: string): Promise<{
-  type: "page" | "section" | "notebook";
+export async function readOneNoteUrl(
+  url: string,
+  options?: { downloadAssets?: boolean }
+): Promise<{
+  type: "page" | "section" | "notebook" | "resource";
   title: string;
   content: string; // text content or tree view
   html?: string;
   pageUrl?: string;
+  assetPath?: string;
 }> {
+  if (isOneNoteResourceUrl(url)) {
+    const resource = await renderResourceForRead(url);
+    return {
+      type: "resource",
+      title: resource.title,
+      content: resource.content,
+      assetPath: resource.assetPath,
+    };
+  }
+
   const parsed = parseOneNoteUrl(url);
 
   // --- SharePoint (business) path: use site-scoped endpoints to bypass
@@ -667,7 +665,7 @@ export async function readOneNoteUrl(url: string): Promise<{
             return {
               type: "page",
               title: page.title,
-              content: htmlToText(html),
+              content: await renderHtmlForRead(html, options),
               html,
               pageUrl: page.webUrl,
             };
@@ -713,7 +711,7 @@ export async function readOneNoteUrl(url: string): Promise<{
       return {
         type: "page",
         title: targetPage.title,
-        content: htmlToText(html),
+        content: await renderHtmlForRead(html, options),
         html,
         pageUrl: targetPage.webUrl,
       };
