@@ -896,6 +896,22 @@ export async function readOneNoteUrl(
 
   // Non-URL input: treat as path or Graph ID
   if (!/^https?:\/\//i.test(url)) {
+    // Raw Graph IDs (no "/") — route directly via resolvePageRef to preserve ID support
+    if (!url.includes("/") && looksLikeGraphId(url)) {
+      try {
+        const r = await resolvePageRef(url);
+        const contentRes = await graphFetch(`${r.apiBase}/onenote/pages/${r.pageId}/content`);
+        const html = await contentRes.text();
+        return {
+          type: "page",
+          title: r.title ?? "(untitled)",
+          content: await renderHtmlForRead(html, options),
+          html,
+        };
+      } catch {
+        // Fall through to path resolution
+      }
+    }
     const r = await resolveByPath(url);
     if (r.pageId) {
       const contentRes = await graphFetch(`${r.apiBase}/onenote/pages/${r.pageId}/content`);
