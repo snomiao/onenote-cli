@@ -25,7 +25,10 @@ async function loadNotebookCache(): Promise<CachedNotebook[] | null> {
   try {
     const raw = await readFile(NOTEBOOK_CACHE_PATH, "utf8");
     const parsed = JSON.parse(raw);
-    if (!parsed?.cachedAt || Date.now() - Date.parse(parsed.cachedAt) > NOTEBOOK_CACHE_TTL_MS) return null;
+    if (!parsed || typeof parsed !== "object") return null;
+    const cachedAt = typeof parsed.cachedAt === "string" ? Date.parse(parsed.cachedAt) : NaN;
+    if (!Number.isFinite(cachedAt) || Date.now() - cachedAt > NOTEBOOK_CACHE_TTL_MS) return null;
+    if (!Array.isArray(parsed.notebooks)) return null;
     return parsed.notebooks as CachedNotebook[];
   } catch {
     return null;
@@ -572,6 +575,12 @@ async function resolveSharePointNotebook(
   );
   const data: GraphResponse<any> = await res.json();
   if (!data.value?.length) return null;
+  if (data.value.length > 1) {
+    const lines = data.value.map((n: any) => `  - ${n.id}`).join("\n");
+    throw new Error(
+      `Multiple notebooks named '${notebookName}' in site (${data.value.length} matches). Please rename for uniqueness or pass a Graph ID.\nCandidates:\n${lines}`
+    );
+  }
   return {
     id: data.value[0].id,
     displayName: data.value[0].displayName ?? notebookName,
