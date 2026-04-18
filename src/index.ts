@@ -76,7 +76,14 @@ function toListItem(raw: any, type?: "notebook" | "section" | "page"): ListItem 
   const name = raw?.displayName ?? raw?.title ?? "(untitled)";
   const date = raw?.lastModifiedDateTime ?? raw?.createdDateTime;
   const typeSuffix = type ? dim(` .${type}`) : "";
-  return { name: `${name}${typeSuffix}`, url, subtitle: date ? String(date).slice(0, 10) : undefined };
+  let path: string | undefined;
+  if (type === "notebook" && url) {
+    try {
+      path = decodeURIComponent(new URL(url).pathname.replace(/\/$/, ""));
+    } catch {}
+  }
+  const parts = [path, date ? String(date).slice(0, 10) : undefined].filter(Boolean);
+  return { name: `${name}${typeSuffix}`, url, subtitle: parts.length ? parts.join("  ") : undefined };
 }
 
 function outputList(items: any[], argv: { json?: boolean; limit?: number }, type?: "notebook" | "section" | "page") {
