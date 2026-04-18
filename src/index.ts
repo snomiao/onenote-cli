@@ -29,6 +29,30 @@ function contentSha4(html: string): string {
   return createHash("sha256").update(html).digest("hex").slice(0, 4);
 }
 
+async function confirmPageSha(ref: string, providedSha: string | undefined, verb: string) {
+  const result = await graph.readOneNoteUrl(ref, { downloadAssets: false });
+  if (result.type !== "page" || !result.html) {
+    throw new Error(`'${ref}' is not a page — ${verb} only operates on pages.`);
+  }
+  const sha = contentSha4(result.html);
+
+  if (!providedSha) {
+    console.log(bold(cyan(result.title)));
+    if (result.breadcrumb) console.log(dim(result.breadcrumb));
+    console.log(dim("─".repeat(Math.min(result.title.length + 10, 60))));
+    console.log(result.content);
+    console.error("");
+    console.error(yellow(`Dry run. To ${verb}, re-run with --sha=${sha}`));
+    return { confirmed: false as const, sha };
+  }
+  if (providedSha !== sha) {
+    throw new Error(
+      `sha mismatch: expected '${sha}', got '${providedSha}'. Re-read the page — content may have changed.`
+    );
+  }
+  return { confirmed: true as const, sha };
+}
+
 type ListItem = { name: string; url?: string; subtitle?: string };
 
 function printList(items: ListItem[]) {
@@ -330,11 +354,20 @@ yargs(hideBin(process.argv))
         )
         .command(
           "delete <ref>",
-          "Delete a page (accepts path, page ID, or OneNote URL)",
-          (y) => y.positional("ref", { type: "string", demandOption: true }),
+          "Delete a page. Without --sha, dry-runs and prints content + sha.",
+          (y) =>
+            y
+              .positional("ref", { type: "string", demandOption: true })
+              .option("sha", {
+                type: "string",
+                describe: "4-char content sha from 'onenote read' to confirm deletion",
+              }),
           async (argv) => {
-            await graph.deletePage(normalizeRef(argv.ref as string)!);
-            console.log("Page deleted.");
+            const ref = normalizeRef(argv.ref as string)!;
+            const { confirmed } = await confirmPageSha(ref, argv.sha as string | undefined, "delete");
+            if (!confirmed) return;
+            await graph.deletePage(ref);
+            console.log(green("Page deleted."));
           }
         )
         .command(
@@ -400,6 +433,10 @@ yargs(hideBin(process.argv))
                 describe: "HTML content to apply",
               })
               .option("md", { type: "boolean", describe: "Treat --content as Markdown and convert it to HTML" })
+              .option("sha", {
+                type: "string",
+                describe: "4-char content sha from 'onenote read' (required for --action=replace)",
+              })
               .check((argv) => {
                 if (argv.action === "insert" && !argv.position) {
                   throw new Error("--position is required when --action=insert.");
@@ -413,6 +450,11 @@ yargs(hideBin(process.argv))
                 return true;
               }),
           async (argv) => {
+            const ref = normalizeRef(argv.ref as string)!;
+            if (argv.action === "replace") {
+              const { confirmed } = await confirmPageSha(ref, argv.sha as string | undefined, "replace");
+              if (!confirmed) return;
+            }
             const command: graph.PageUpdateCommand = {
               target: argv.target as string,
               action: argv.action as graph.PageUpdateCommand["action"],
@@ -421,8 +463,8 @@ yargs(hideBin(process.argv))
             if (argv.position) {
               command.position = argv.position as graph.PageUpdateCommand["position"];
             }
-            await graph.updatePage(normalizeRef(argv.ref as string)!, [command]);
-            console.log("Page updated.");
+            await graph.updatePage(ref, [command]);
+            console.log(green("Page updated."));
           }
         )
         .demandCommand(1),
@@ -442,26 +484,8 @@ yargs(hideBin(process.argv))
         }),
     async (argv) => {
       const ref = normalizeRef(argv.ref as string)!;
-      const result = await graph.readOneNoteUrl(ref, { downloadAssets: false });
-      if (result.type !== "page" || !result.html) {
-        throw new Error(`'${ref}' is not a page — rm only deletes pages.`);
-      }
-      const sha = contentSha4(result.html);
-
-      if (!argv.sha) {
-        console.log(bold(cyan(result.title)));
-        if (result.breadcrumb) console.log(dim(result.breadcrumb));
-        console.log(dim("─".repeat(Math.min(result.title.length + 10, 60))));
-        console.log(result.content);
-        console.error("");
-        console.error(yellow(`Dry run. To delete, re-run with --sha=${sha}`));
-        return;
-      }
-      if (argv.sha !== sha) {
-        throw new Error(
-          `sha mismatch: expected '${sha}', got '${argv.sha}'. Re-read the page — content may have changed.`
-        );
-      }
+      const { confirmed } = await confirmPageSha(ref, argv.sha as string | undefined, "delete");
+      if (!confirmed) return;
       await graph.deletePage(ref);
       console.log(green("Page deleted."));
     }

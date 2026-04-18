@@ -65,8 +65,8 @@ onenote pages list [<ref>]                    # e.g. "NotebookA/SectionB"
 onenote pages get <ref>
 onenote pages create -s <ref> -t <title> --body "# Heading" --md
 onenote pages append <ref> -c "- bullet" --md
-onenote pages update <ref> --target "#element-id" --action replace -c "<p>new</p>"
-onenote pages delete <ref>
+onenote pages update <ref> --target "#element-id" --action replace -c "<p>new</p>" --sha <4-char>
+onenote pages delete <ref> --sha <4-char>
 
 # Top-level shortcuts
 onenote ls [<path>]                           # auto: notebooks / sections / pages
