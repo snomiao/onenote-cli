@@ -462,9 +462,9 @@ yargs(hideBin(process.argv))
     }
   )
 
-  // --- mv (rename by ref; depth-dispatched) ---
+  // --- rename (by ref; depth-dispatched) ---
   .command(
-    ["mv <ref> <name>", "rename <ref> <name>"],
+    "rename <ref> <name>",
     "Rename a notebook, section, or page (depth inferred from path)",
     (y) =>
       y
@@ -477,9 +477,8 @@ yargs(hideBin(process.argv))
       const segments = isUrl ? [] : ref.split("/").filter(Boolean);
       const isGraphId = !isUrl && /^[0-9]-[0-9a-f-]{10,}$/i.test(ref);
       if (isUrl || isGraphId) {
-        // Raw IDs/URLs — ambiguous shape. Require user to disambiguate via subcommand.
         throw new Error(
-          "mv with a raw ID/URL is ambiguous. Use 'notebooks rename', 'sections rename', or 'pages rename' instead."
+          "rename with a raw ID/URL is ambiguous. Use 'notebooks rename', 'sections rename', or 'pages rename' instead."
         );
       }
       if (segments.length === 1) {

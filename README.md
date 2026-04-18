@@ -72,7 +72,7 @@ onenote pages delete <ref>
 onenote ls [<path>]                           # auto: notebooks / sections / pages
 onenote read <ref>                            # render page (or list section/notebook)
 onenote open <ref>                            # open in browser
-onenote mv <ref> <new-name>                   # rename (depth inferred)
+onenote rename <ref> <new-name>               # rename (depth inferred)
 onenote rm <ref>                              # delete page
 onenote init                                  # first-run setup
 
