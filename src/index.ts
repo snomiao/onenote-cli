@@ -68,11 +68,12 @@ function printList(items: ListItem[]) {
 }
 
 function toListItem(raw: any, type?: "notebook" | "section" | "page"): ListItem {
-  const url =
+  const url = (
     raw?.links?.oneNoteWebUrl?.href
     ?? raw?.links?.oneNoteClientUrl?.href
     ?? raw?.webUrl
-    ?? "";
+    ?? ""
+  ).replace(/#.*$/, "");
   const name = raw?.displayName ?? raw?.title ?? "(untitled)";
   const date = raw?.lastModifiedDateTime ?? raw?.createdDateTime;
   const typeSuffix = type ? dim(` .${type}`) : "";
