@@ -65,15 +65,16 @@ onenote pages list [<ref>]                    # e.g. "NotebookA/SectionB"
 onenote pages get <ref>
 onenote pages create -s <ref> -t <title> --body "# Heading" --md
 onenote pages append <ref> -c "- bullet" --md
-onenote pages update <ref> --target "#element-id" --action replace -c "<p>new</p>"
-onenote pages delete <ref>
+onenote pages update <ref> --target "#element-id" --action replace -c "<p>new</p>" --sha <4-char>
+onenote pages delete <ref> --sha <4-char>
 
 # Top-level shortcuts
 onenote ls [<path>]                           # auto: notebooks / sections / pages
 onenote read <ref>                            # render page (or list section/notebook)
 onenote open <ref>                            # open in browser
-onenote mv <ref> <new-name>                   # rename (depth inferred)
-onenote rm <ref>                              # delete page
+onenote rename <ref> <new-name>               # rename (depth inferred)
+onenote rm <ref>                              # dry-run: prints content + sha
+onenote rm <ref> --sha=<4-char>               # confirm deletion with content sha
 onenote init                                  # first-run setup
 
 # Search

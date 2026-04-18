@@ -22,6 +22,14 @@
 - Conventional commits for all commit messages
 - `.env.local` at package root for credentials (auto-loaded)
 
+## Safe by default
+Destructive operations (anything that deletes or overwrites user content in OneNote) must be opt-in, not default. Without an explicit confirmation flag, they dry-run: show what would be affected + a short content sha, then exit.
+
+- `rm` / `pages delete` / `pages update --action=replace` require `--sha=<4-char>` (sha256 of page HTML, first 4 hex chars). Mismatch → refuse.
+- `read` prints the same sha to stderr so users can copy it straight from a prior read.
+- Non-destructive ops (`cp`, `append`, additive `update` actions, `rename`, `create`) don't need confirmation.
+- When in doubt between atomic-but-risky and two-step-but-safe (e.g. section move), ship the safe version first and leave the destructive step manual.
+
 ## Cache paths
 All CLI caches live at **package root** (`<pkg>/.onenote/`), NOT cwd. The CLI is project-agnostic — caches must survive across `cd` and not pollute user directories. Resolve via `dirname(import.meta.dir)` in `src/*.ts`.
 

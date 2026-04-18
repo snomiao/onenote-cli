@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { createHash } from "node:crypto";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as graph from "./graph";
@@ -24,6 +25,34 @@ function link(url: string, text: string): string {
   return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
 }
 
+function contentSha4(html: string): string {
+  return createHash("sha256").update(html).digest("hex").slice(0, 4);
+}
+
+async function confirmPageSha(ref: string, providedSha: string | undefined, verb: string) {
+  const result = await graph.readOneNoteUrl(ref, { downloadAssets: false });
+  if (result.type !== "page" || !result.html) {
+    throw new Error(`'${ref}' is not a page — ${verb} only operates on pages.`);
+  }
+  const sha = contentSha4(result.html);
+
+  if (!providedSha) {
+    console.log(bold(cyan(result.title)));
+    if (result.breadcrumb) console.log(dim(result.breadcrumb));
+    console.log(dim("─".repeat(Math.min(result.title.length + 10, 60))));
+    console.log(result.content);
+    console.error("");
+    console.error(yellow(`Dry run. To ${verb}, re-run with --sha=${sha}`));
+    return { confirmed: false as const, sha };
+  }
+  if (providedSha !== sha) {
+    throw new Error(
+      `sha mismatch: expected '${sha}', got '${providedSha}'. Re-read the page — content may have changed.`
+    );
+  }
+  return { confirmed: true as const, sha };
+}
+
 type ListItem = { name: string; url?: string; subtitle?: string };
 
 function printList(items: ListItem[]) {
@@ -38,7 +67,7 @@ function printList(items: ListItem[]) {
   }
 }
 
-function toListItem(raw: any): ListItem {
+function toListItem(raw: any, type?: "notebook" | "section" | "page"): ListItem {
   const url =
     raw?.links?.oneNoteWebUrl?.href
     ?? raw?.links?.oneNoteClientUrl?.href
@@ -46,16 +75,17 @@ function toListItem(raw: any): ListItem {
     ?? "";
   const name = raw?.displayName ?? raw?.title ?? "(untitled)";
   const date = raw?.lastModifiedDateTime ?? raw?.createdDateTime;
-  return { name, url, subtitle: date ? String(date).slice(0, 10) : undefined };
+  const typeSuffix = type ? dim(` .${type}`) : "";
+  return { name: `${name}${typeSuffix}`, url, subtitle: date ? String(date).slice(0, 10) : undefined };
 }
 
-function outputList(items: any[], argv: { json?: boolean; limit?: number }) {
+function outputList(items: any[], argv: { json?: boolean; limit?: number }, type?: "notebook" | "section" | "page") {
   const limited = typeof argv.limit === "number" ? items.slice(0, argv.limit) : items;
   if (argv.json) {
     console.log(JSON.stringify(limited, null, 2));
     return;
   }
-  printList(limited.map(toListItem));
+  printList(limited.map((r) => toListItem(r, type)));
 }
 
 function formatTable(items: any[], columns: { key: string; label: string }[]) {
@@ -109,13 +139,13 @@ yargs(hideBin(process.argv))
       const segments = path ? path.split("/").filter(Boolean) : [];
       if (segments.length === 0) {
         const notebooks = await graph.listNotebooks();
-        printList((notebooks ?? []).map(toListItem));
+        printList((notebooks ?? []).map((r) => toListItem(r, "notebook")));
       } else if (segments.length === 1) {
         const sections = await graph.listSections(path);
-        printList((sections ?? []).map(toListItem));
+        printList((sections ?? []).map((r) => toListItem(r, "section")));
       } else if (segments.length === 2) {
         const pages = await graph.listPages(path);
-        printList((pages ?? []).map(toListItem));
+        printList((pages ?? []).map((r) => toListItem(r, "page")));
       } else {
         throw new Error(
           `Path '${path}' points to a page, not a listable container. Use 'onenote read ${path}' to view it.`
@@ -139,7 +169,7 @@ yargs(hideBin(process.argv))
               .option("limit", { type: "number", describe: "Max items (default: all)" }),
           async (argv) => {
             const notebooks = await graph.listNotebooks();
-            outputList(notebooks ?? [], argv);
+            outputList(notebooks ?? [], argv, "notebook");
           }
         )
         .command(
@@ -195,7 +225,7 @@ yargs(hideBin(process.argv))
           async (argv) => {
             const notebookRef = normalizeRef((argv.ref as string | undefined) ?? (argv.notebook as string | undefined));
             const sections = await graph.listSections(notebookRef);
-            outputList(sections ?? [], argv);
+            outputList(sections ?? [], argv, "section");
           }
         )
         .command(
@@ -282,12 +312,12 @@ yargs(hideBin(process.argv))
           async (argv) => {
             const sectionRef = normalizeRef((argv.ref as string | undefined) ?? (argv.section as string | undefined));
             const pages = await graph.listPages(sectionRef);
-            outputList(pages ?? [], argv);
+            outputList(pages ?? [], argv, "page");
           }
         )
         .command(
           "get <ref>",
-          "Get page metadata (accepts a page ID or a OneNote URL)",
+          "Get page metadata (accepts path, page ID, or OneNote URL)",
           (y) => y.positional("ref", { type: "string", demandOption: true }),
           async (argv) => {
             const page = await graph.getPage(normalizeRef(argv.ref as string)!);
@@ -325,16 +355,25 @@ yargs(hideBin(process.argv))
         )
         .command(
           "delete <ref>",
-          "Delete a page (accepts a page ID or a OneNote URL)",
-          (y) => y.positional("ref", { type: "string", demandOption: true }),
+          "Delete a page. Without --sha, dry-runs and prints content + sha.",
+          (y) =>
+            y
+              .positional("ref", { type: "string", demandOption: true })
+              .option("sha", {
+                type: "string",
+                describe: "4-char content sha from 'onenote read' to confirm deletion",
+              }),
           async (argv) => {
-            await graph.deletePage(normalizeRef(argv.ref as string)!);
-            console.log("Page deleted.");
+            const ref = normalizeRef(argv.ref as string)!;
+            const { confirmed } = await confirmPageSha(ref, argv.sha as string | undefined, "delete");
+            if (!confirmed) return;
+            await graph.deletePage(ref);
+            console.log(green("Page deleted."));
           }
         )
         .command(
           "rename <ref> <title>",
-          "Rename a page (accepts a page ID or a OneNote URL)",
+          "Rename a page (accepts path, page ID, or OneNote URL)",
           (y) =>
             y
               .positional("ref", { type: "string", demandOption: true })
@@ -349,7 +388,7 @@ yargs(hideBin(process.argv))
         )
         .command(
           "append <ref>",
-          "Append HTML content to a page's body (accepts a page ID or a OneNote URL)",
+          "Append HTML content to a page's body (accepts path, page ID, or OneNote URL)",
           (y) =>
             y
               .positional("ref", { type: "string", demandOption: true })
@@ -365,7 +404,7 @@ yargs(hideBin(process.argv))
         )
         .command(
           "update <ref>",
-          "Apply a raw Graph page PATCH command (accepts a page ID or a OneNote URL)",
+          "Apply a raw Graph page PATCH command (accepts path, page ID, or OneNote URL)",
           (y) =>
             y
               .positional("ref", { type: "string", demandOption: true })
@@ -395,6 +434,10 @@ yargs(hideBin(process.argv))
                 describe: "HTML content to apply",
               })
               .option("md", { type: "boolean", describe: "Treat --content as Markdown and convert it to HTML" })
+              .option("sha", {
+                type: "string",
+                describe: "4-char content sha from 'onenote read' (required for --action=replace)",
+              })
               .check((argv) => {
                 if (argv.action === "insert" && !argv.position) {
                   throw new Error("--position is required when --action=insert.");
@@ -408,6 +451,11 @@ yargs(hideBin(process.argv))
                 return true;
               }),
           async (argv) => {
+            const ref = normalizeRef(argv.ref as string)!;
+            if (argv.action === "replace") {
+              const { confirmed } = await confirmPageSha(ref, argv.sha as string | undefined, "replace");
+              if (!confirmed) return;
+            }
             const command: graph.PageUpdateCommand = {
               target: argv.target as string,
               action: argv.action as graph.PageUpdateCommand["action"],
@@ -416,28 +464,64 @@ yargs(hideBin(process.argv))
             if (argv.position) {
               command.position = argv.position as graph.PageUpdateCommand["position"];
             }
-            await graph.updatePage(normalizeRef(argv.ref as string)!, [command]);
-            console.log("Page updated.");
+            await graph.updatePage(ref, [command]);
+            console.log(green("Page updated."));
           }
         )
         .demandCommand(1),
     () => {}
   )
 
-  // --- rm (delete page by ref) ---
+  // --- rm (delete page by ref; requires --sha confirmation) ---
   .command(
     ["rm <ref>", "delete <ref>"],
-    "Delete a page (by path, ID, or URL)",
-    (y) => y.positional("ref", { type: "string", demandOption: true }),
+    "Delete a page. Without --sha, dry-runs and prints content + sha.",
+    (y) =>
+      y
+        .positional("ref", { type: "string", demandOption: true })
+        .option("sha", {
+          type: "string",
+          describe: "4-char content sha from 'onenote read' to confirm deletion",
+        }),
     async (argv) => {
-      await graph.deletePage(normalizeRef(argv.ref as string)!);
-      console.log("Page deleted.");
+      const ref = normalizeRef(argv.ref as string)!;
+      const { confirmed } = await confirmPageSha(ref, argv.sha as string | undefined, "delete");
+      if (!confirmed) return;
+      await graph.deletePage(ref);
+      console.log(green("Page deleted."));
     }
   )
 
-  // --- mv (rename by ref; depth-dispatched) ---
+  // --- cp (copy section into another notebook; non-destructive) ---
   .command(
-    ["mv <ref> <name>", "rename <ref> <name>"],
+    "cp <src> <dst>",
+    "Copy a section into another notebook (non-destructive; source remains)",
+    (y) =>
+      y
+        .positional("src", { type: "string", demandOption: true, describe: "Source section (path/ID/URL)" })
+        .positional("dst", { type: "string", demandOption: true, describe: "Destination notebook (path/ID/URL)" }),
+    async (argv) => {
+      const src = normalizeRef(argv.src as string)!;
+      const dst = normalizeRef(argv.dst as string)!;
+      const { operationUrl } = await graph.copySectionToNotebook(src, dst);
+      console.log(dim(`Operation: ${operationUrl}`));
+      const result = await graph.waitForOperation(operationUrl, {
+        onProgress: (s) => console.log(dim(`  status: ${s}`)),
+      });
+      if (result.status === "failed") {
+        throw new Error(`Copy failed: ${JSON.stringify(result.error)}`);
+      }
+      console.log(green("Copy completed."));
+      if (result.resourceLocation) console.log(`New section: ${result.resourceLocation}`);
+      console.log(
+        dim("Source section was NOT deleted. Verify the copy, then 'onenote rm' the source manually if desired.")
+      );
+    }
+  )
+
+  // --- rename (by ref; depth-dispatched) ---
+  .command(
+    "rename <ref> <name>",
     "Rename a notebook, section, or page (depth inferred from path)",
     (y) =>
       y
@@ -450,9 +534,8 @@ yargs(hideBin(process.argv))
       const segments = isUrl ? [] : ref.split("/").filter(Boolean);
       const isGraphId = !isUrl && /^[0-9]-[0-9a-f-]{10,}$/i.test(ref);
       if (isUrl || isGraphId) {
-        // Raw IDs/URLs — ambiguous shape. Require user to disambiguate via subcommand.
         throw new Error(
-          "mv with a raw ID/URL is ambiguous. Use 'notebooks rename', 'sections rename', or 'pages rename' instead."
+          "rename with a raw ID/URL is ambiguous. Use 'notebooks rename', 'sections rename', or 'pages rename' instead."
         );
       }
       if (segments.length === 1) {
@@ -530,6 +613,7 @@ yargs(hideBin(process.argv))
 
       if (argv.html && result.html) {
         console.log(result.html);
+        if (result.type === "page") console.error(dim(`sha: ${contentSha4(result.html)}`));
         return;
       }
 
@@ -537,6 +621,9 @@ yargs(hideBin(process.argv))
       if (result.breadcrumb) console.log(dim(result.breadcrumb));
       console.log(dim("─".repeat(Math.min(result.title.length + 10, 60))));
       console.log(result.content);
+      if (result.type === "page" && result.html) {
+        console.error(dim(`sha: ${contentSha4(result.html)}`));
+      }
     }
   )
 
