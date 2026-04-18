@@ -76,13 +76,22 @@ function toListItem(raw: any, type?: "notebook" | "section" | "page"): ListItem 
   const name = raw?.displayName ?? raw?.title ?? "(untitled)";
   const date = raw?.lastModifiedDateTime ?? raw?.createdDateTime;
   const typeSuffix = type ? dim(` .${type}`) : "";
-  let path: string | undefined;
+  let locationHint: string | undefined;
   if (type === "notebook" && url) {
     try {
-      path = decodeURIComponent(new URL(url).pathname.replace(/\/$/, ""));
+      const pathname = decodeURIComponent(new URL(url).pathname.replace(/\/$/, ""));
+      // Strip /personal/{user}/Documents/ prefix, then show parent folder only if non-standard
+      const afterDocuments = pathname.replace(/^\/[^/]+\/[^/]+\/Documents\//, "");
+      const segments = afterDocuments.split("/");
+      // Standard path: Notebooks/{name} — hide, not informative
+      if (segments[0] !== "Notebooks") {
+        // Show parent folder(s) only (everything except the last segment)
+        const parent = segments.slice(0, -1).join("/");
+        locationHint = parent ? `${parent}/` : "Documents/";
+      }
     } catch {}
   }
-  const parts = [path, date ? String(date).slice(0, 10) : undefined].filter(Boolean);
+  const parts = [locationHint, date ? String(date).slice(0, 10) : undefined].filter(Boolean);
   return { name: `${name}${typeSuffix}`, url, subtitle: parts.length ? parts.join("  ") : undefined };
 }
 

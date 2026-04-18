@@ -745,14 +745,20 @@ export async function searchLocal(query: string): Promise<CachedPage[]> {
             else byGuid.set(anchor.guid, { title: anchor.title, positions: [pos] });
           }
           // Build map of official URLs by GUID (from OneNote API)
-          const officialByGuid = new Map<string, { url: string; title: string }>();
+          const officialByGuid = new Map<string, { url: string; title: string; body?: string }>();
           for (const op of data.officialPages ?? []) {
             if (op.guid && op.webUrl) officialByGuid.set(op.guid, { url: op.webUrl, title: op.title });
           }
+          // Build body map from JSON pages for clean snippets (avoids binary garbage)
+          const bodyByGuid = new Map<string, string>();
+          for (const p of data.pages ?? []) {
+            if (p.pageGuid && p.body) bodyByGuid.set(p.pageGuid, p.body);
+          }
 
           for (const [guid, info] of byGuid) {
-            const firstPos = info.positions[0];
-            const context = extractContextFromBinary(binBuf, firstPos, query);
+            const firstPos = info.positions[0]!;
+            const cleanBody = bodyByGuid.get(guid);
+            const context = cleanBody ?? extractContextFromBinary(binBuf, firstPos, query);
             const official = officialByGuid.get(guid);
             const pageUrl = official?.url ?? buildPageUrl(data.webUrl, info.title, guid);
             const displayTitle = official?.title ?? info.title;
