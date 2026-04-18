@@ -292,7 +292,7 @@ yargs(hideBin(process.argv))
         )
         .command(
           "get <ref>",
-          "Get page metadata (accepts a page ID or a OneNote URL)",
+          "Get page metadata (accepts path, page ID, or OneNote URL)",
           (y) => y.positional("ref", { type: "string", demandOption: true }),
           async (argv) => {
             const page = await graph.getPage(normalizeRef(argv.ref as string)!);
@@ -330,7 +330,7 @@ yargs(hideBin(process.argv))
         )
         .command(
           "delete <ref>",
-          "Delete a page (accepts a page ID or a OneNote URL)",
+          "Delete a page (accepts path, page ID, or OneNote URL)",
           (y) => y.positional("ref", { type: "string", demandOption: true }),
           async (argv) => {
             await graph.deletePage(normalizeRef(argv.ref as string)!);
@@ -339,7 +339,7 @@ yargs(hideBin(process.argv))
         )
         .command(
           "rename <ref> <title>",
-          "Rename a page (accepts a page ID or a OneNote URL)",
+          "Rename a page (accepts path, page ID, or OneNote URL)",
           (y) =>
             y
               .positional("ref", { type: "string", demandOption: true })
@@ -354,7 +354,7 @@ yargs(hideBin(process.argv))
         )
         .command(
           "append <ref>",
-          "Append HTML content to a page's body (accepts a page ID or a OneNote URL)",
+          "Append HTML content to a page's body (accepts path, page ID, or OneNote URL)",
           (y) =>
             y
               .positional("ref", { type: "string", demandOption: true })
@@ -370,7 +370,7 @@ yargs(hideBin(process.argv))
         )
         .command(
           "update <ref>",
-          "Apply a raw Graph page PATCH command (accepts a page ID or a OneNote URL)",
+          "Apply a raw Graph page PATCH command (accepts path, page ID, or OneNote URL)",
           (y) =>
             y
               .positional("ref", { type: "string", demandOption: true })
