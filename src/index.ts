@@ -435,6 +435,33 @@ yargs(hideBin(process.argv))
     }
   )
 
+  // --- cp (copy section into another notebook; non-destructive) ---
+  .command(
+    "cp <src> <dst>",
+    "Copy a section into another notebook (non-destructive; source remains)",
+    (y) =>
+      y
+        .positional("src", { type: "string", demandOption: true, describe: "Source section (path/ID/URL)" })
+        .positional("dst", { type: "string", demandOption: true, describe: "Destination notebook (path/ID/URL)" }),
+    async (argv) => {
+      const src = normalizeRef(argv.src as string)!;
+      const dst = normalizeRef(argv.dst as string)!;
+      const { operationUrl } = await graph.copySectionToNotebook(src, dst);
+      console.log(dim(`Operation: ${operationUrl}`));
+      const result = await graph.waitForOperation(operationUrl, {
+        onProgress: (s) => console.log(dim(`  status: ${s}`)),
+      });
+      if (result.status === "failed") {
+        throw new Error(`Copy failed: ${JSON.stringify(result.error)}`);
+      }
+      console.log(green("Copy completed."));
+      if (result.resourceLocation) console.log(`New section: ${result.resourceLocation}`);
+      console.log(
+        dim("Source section was NOT deleted. Verify the copy, then 'onenote rm' the source manually if desired.")
+      );
+    }
+  )
+
   // --- mv (rename by ref; depth-dispatched) ---
   .command(
     ["mv <ref> <name>", "rename <ref> <name>"],
