@@ -349,6 +349,54 @@ export async function renameNotebook(ref: string, newName: string) {
   return res.json();
 }
 
+/**
+ * Copy a section into a destination notebook. Returns the async operation
+ * URL (Operation-Location header) that Graph provides; callers can poll it.
+ * Source and destination must be in /me/onenote (SharePoint site-scoped
+ * cross-apiBase copies are not supported by Graph).
+ */
+export async function copySectionToNotebook(
+  sectionRef: string,
+  destNotebookRef: string
+): Promise<{ operationUrl: string; sourceApiBase: string; destApiBase: string }> {
+  const src = await resolveSectionRef(sectionRef);
+  const dst = await resolveNotebookRef(destNotebookRef);
+  if (src.apiBase !== dst.apiBase) {
+    throw new Error(
+      `Cross-site section copy is not supported by Graph (source=${src.apiBase}, dest=${dst.apiBase}).`
+    );
+  }
+  const res = await graphFetch(`${src.apiBase}/onenote/sections/${src.sectionId}/copyToNotebook`, {
+    method: "POST",
+    body: JSON.stringify({ id: dst.notebookId }),
+  });
+  const operationUrl = res.headers.get("Operation-Location") ?? "";
+  return { operationUrl, sourceApiBase: src.apiBase, destApiBase: dst.apiBase };
+}
+
+/**
+ * Poll a Graph OneNote async operation until it completes or times out.
+ * See: https://learn.microsoft.com/graph/api/onenoteoperation-get
+ */
+export async function waitForOperation(
+  operationUrl: string,
+  options?: { timeoutMs?: number; pollIntervalMs?: number; onProgress?: (status: string) => void }
+): Promise<{ status: string; resourceLocation?: string; error?: any }> {
+  const timeoutMs = options?.timeoutMs ?? 5 * 60 * 1000;
+  const pollIntervalMs = options?.pollIntervalMs ?? 2000;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const res = await graphFetch(operationUrl);
+    const data: any = await res.json();
+    options?.onProgress?.(data.status);
+    if (data.status === "completed" || data.status === "failed") {
+      return { status: data.status, resourceLocation: data.resourceLocation, error: data.error };
+    }
+    await new Promise((r) => setTimeout(r, pollIntervalMs));
+  }
+  throw new Error(`Operation did not complete within ${timeoutMs}ms: ${operationUrl}`);
+}
+
 export async function createPage(sectionId: string, title: string, htmlBody: string) {
   const { apiBase, sectionId: resolvedSectionId } = await resolveSectionRef(sectionId);
   const html = `
