@@ -67,7 +67,7 @@ function printList(items: ListItem[]) {
   }
 }
 
-function toListItem(raw: any): ListItem {
+function toListItem(raw: any, type?: "notebook" | "section" | "page"): ListItem {
   const url =
     raw?.links?.oneNoteWebUrl?.href
     ?? raw?.links?.oneNoteClientUrl?.href
@@ -75,16 +75,17 @@ function toListItem(raw: any): ListItem {
     ?? "";
   const name = raw?.displayName ?? raw?.title ?? "(untitled)";
   const date = raw?.lastModifiedDateTime ?? raw?.createdDateTime;
-  return { name, url, subtitle: date ? String(date).slice(0, 10) : undefined };
+  const typeSuffix = type ? dim(` .${type}`) : "";
+  return { name: `${name}${typeSuffix}`, url, subtitle: date ? String(date).slice(0, 10) : undefined };
 }
 
-function outputList(items: any[], argv: { json?: boolean; limit?: number }) {
+function outputList(items: any[], argv: { json?: boolean; limit?: number }, type?: "notebook" | "section" | "page") {
   const limited = typeof argv.limit === "number" ? items.slice(0, argv.limit) : items;
   if (argv.json) {
     console.log(JSON.stringify(limited, null, 2));
     return;
   }
-  printList(limited.map(toListItem));
+  printList(limited.map((r) => toListItem(r, type)));
 }
 
 function formatTable(items: any[], columns: { key: string; label: string }[]) {
@@ -138,13 +139,13 @@ yargs(hideBin(process.argv))
       const segments = path ? path.split("/").filter(Boolean) : [];
       if (segments.length === 0) {
         const notebooks = await graph.listNotebooks();
-        printList((notebooks ?? []).map(toListItem));
+        printList((notebooks ?? []).map((r) => toListItem(r, "notebook")));
       } else if (segments.length === 1) {
         const sections = await graph.listSections(path);
-        printList((sections ?? []).map(toListItem));
+        printList((sections ?? []).map((r) => toListItem(r, "section")));
       } else if (segments.length === 2) {
         const pages = await graph.listPages(path);
-        printList((pages ?? []).map(toListItem));
+        printList((pages ?? []).map((r) => toListItem(r, "page")));
       } else {
         throw new Error(
           `Path '${path}' points to a page, not a listable container. Use 'onenote read ${path}' to view it.`
@@ -168,7 +169,7 @@ yargs(hideBin(process.argv))
               .option("limit", { type: "number", describe: "Max items (default: all)" }),
           async (argv) => {
             const notebooks = await graph.listNotebooks();
-            outputList(notebooks ?? [], argv);
+            outputList(notebooks ?? [], argv, "notebook");
           }
         )
         .command(
@@ -224,7 +225,7 @@ yargs(hideBin(process.argv))
           async (argv) => {
             const notebookRef = normalizeRef((argv.ref as string | undefined) ?? (argv.notebook as string | undefined));
             const sections = await graph.listSections(notebookRef);
-            outputList(sections ?? [], argv);
+            outputList(sections ?? [], argv, "section");
           }
         )
         .command(
@@ -311,7 +312,7 @@ yargs(hideBin(process.argv))
           async (argv) => {
             const sectionRef = normalizeRef((argv.ref as string | undefined) ?? (argv.section as string | undefined));
             const pages = await graph.listPages(sectionRef);
-            outputList(pages ?? [], argv);
+            outputList(pages ?? [], argv, "page");
           }
         )
         .command(
