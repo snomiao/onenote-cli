@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { createHash } from "node:crypto";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as graph from "./graph";
@@ -22,6 +23,10 @@ const pageInsertPositions = ["before", "after"] as const;
 function link(url: string, text: string): string {
   if (!isTTY) return `[${text}](${url})`;
   return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
+}
+
+function contentSha4(html: string): string {
+  return createHash("sha256").update(html).digest("hex").slice(0, 4);
 }
 
 type ListItem = { name: string; url?: string; subtitle?: string };
@@ -424,14 +429,41 @@ yargs(hideBin(process.argv))
     () => {}
   )
 
-  // --- rm (delete page by ref) ---
+  // --- rm (delete page by ref; requires --sha confirmation) ---
   .command(
     ["rm <ref>", "delete <ref>"],
-    "Delete a page (by path, ID, or URL)",
-    (y) => y.positional("ref", { type: "string", demandOption: true }),
+    "Delete a page. Without --sha, dry-runs and prints content + sha.",
+    (y) =>
+      y
+        .positional("ref", { type: "string", demandOption: true })
+        .option("sha", {
+          type: "string",
+          describe: "4-char content sha from 'onenote read' to confirm deletion",
+        }),
     async (argv) => {
-      await graph.deletePage(normalizeRef(argv.ref as string)!);
-      console.log("Page deleted.");
+      const ref = normalizeRef(argv.ref as string)!;
+      const result = await graph.readOneNoteUrl(ref, { downloadAssets: false });
+      if (result.type !== "page" || !result.html) {
+        throw new Error(`'${ref}' is not a page — rm only deletes pages.`);
+      }
+      const sha = contentSha4(result.html);
+
+      if (!argv.sha) {
+        console.log(bold(cyan(result.title)));
+        if (result.breadcrumb) console.log(dim(result.breadcrumb));
+        console.log(dim("─".repeat(Math.min(result.title.length + 10, 60))));
+        console.log(result.content);
+        console.error("");
+        console.error(yellow(`Dry run. To delete, re-run with --sha=${sha}`));
+        return;
+      }
+      if (argv.sha !== sha) {
+        throw new Error(
+          `sha mismatch: expected '${sha}', got '${argv.sha}'. Re-read the page — content may have changed.`
+        );
+      }
+      await graph.deletePage(ref);
+      console.log(green("Page deleted."));
     }
   )
 
@@ -556,6 +588,7 @@ yargs(hideBin(process.argv))
 
       if (argv.html && result.html) {
         console.log(result.html);
+        if (result.type === "page") console.error(dim(`sha: ${contentSha4(result.html)}`));
         return;
       }
 
@@ -563,6 +596,9 @@ yargs(hideBin(process.argv))
       if (result.breadcrumb) console.log(dim(result.breadcrumb));
       console.log(dim("─".repeat(Math.min(result.title.length + 10, 60))));
       console.log(result.content);
+      if (result.type === "page" && result.html) {
+        console.error(dim(`sha: ${contentSha4(result.html)}`));
+      }
     }
   )
 

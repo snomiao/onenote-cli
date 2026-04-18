@@ -73,7 +73,8 @@ onenote ls [<path>]                           # auto: notebooks / sections / pag
 onenote read <ref>                            # render page (or list section/notebook)
 onenote open <ref>                            # open in browser
 onenote rename <ref> <new-name>               # rename (depth inferred)
-onenote rm <ref>                              # delete page
+onenote rm <ref>                              # dry-run: prints content + sha
+onenote rm <ref> --sha=<4-char>               # confirm deletion with content sha
 onenote init                                  # first-run setup
 
 # Search
