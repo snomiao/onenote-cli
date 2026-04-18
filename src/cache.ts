@@ -698,6 +698,34 @@ function extractContextFromBinary(
   return utf8Text || utf16Text;
 }
 
+function asciiRatio(s: string): number {
+  if (!s.length) return 0;
+  const printable = s.split("").filter((c) => c >= "\x20" && c <= "\x7E").length;
+  return printable / s.length;
+}
+
+function cleanSnippet(raw: string, query: string): string {
+  const stripped = raw
+    .replace(/<[^>]{0,300}>/g, " ")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
+    .replace(/[\x00-\x1F\x7F]/g, " ");
+  const lq = query.toLowerCase();
+  // Split into lines, find lines that contain the query
+  const lines = stripped.split(/\n+/).map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const matchingLines = lines.filter((l) => l.toLowerCase().includes(lq));
+  if (matchingLines.length === 0) return "";
+  // Prefer lines with better ASCII ratio (less binary garbage)
+  const best = matchingLines.sort((a, b) => asciiRatio(b) - asciiRatio(a))[0]!;
+  // If the best line is still mostly garbage, say so
+  if (asciiRatio(best) < 0.15) return "[binary content, no clean preview]";
+  // Trim to a window around the query
+  const idx = best.toLowerCase().indexOf(lq);
+  const start = Math.max(0, idx - 30);
+  const end = Math.min(best.length, idx + query.length + 30);
+  const excerpt = best.slice(start, end).trim();
+  return (start > 0 ? "..." : "") + excerpt + (end < best.length ? "..." : "");
+}
+
 export async function searchLocal(query: string): Promise<CachedPage[]> {
   const results: CachedPage[] = [];
 
@@ -758,13 +786,13 @@ export async function searchLocal(query: string): Promise<CachedPage[]> {
           for (const [guid, info] of byGuid) {
             const firstPos = info.positions[0]!;
             const cleanBody = bodyByGuid.get(guid);
-            const context = cleanBody ?? extractContextFromBinary(binBuf, firstPos, query);
+            const rawContext = cleanBody ?? extractContextFromBinary(binBuf, firstPos, query);
             const official = officialByGuid.get(guid);
             const pageUrl = official?.url ?? buildPageUrl(data.webUrl, info.title, guid);
             const displayTitle = official?.title ?? info.title;
             results.push({
               title: displayTitle,
-              body: context,
+              body: cleanSnippet(rawContext, query),
               section: data.section,
               notebook: data.notebook,
               webUrl: pageUrl,
@@ -779,7 +807,7 @@ export async function searchLocal(query: string): Promise<CachedPage[]> {
               const pageUrl = buildPageUrl(data.webUrl, page.title, page.pageGuid);
               results.push({
                 title: page.title,
-                body: page.body,
+                body: cleanSnippet(page.body, query),
                 section: data.section,
                 notebook: data.notebook,
                 webUrl: pageUrl,
