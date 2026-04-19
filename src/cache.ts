@@ -804,7 +804,7 @@ export async function searchLocal(query: string): Promise<CachedPage[]> {
           const lowerQuery = query.toLowerCase();
           for (const page of data.pages ?? []) {
             if (page.body?.toLowerCase().includes(lowerQuery)) {
-              const pageUrl = buildPageUrl(data.webUrl, page.title, page.pageGuid);
+              const pageUrl = page.officialUrl ?? buildPageUrl(data.webUrl, page.title, page.pageGuid);
               results.push({
                 title: page.title,
                 body: cleanSnippet(page.body, query),
