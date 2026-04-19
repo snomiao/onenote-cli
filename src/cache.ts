@@ -708,7 +708,7 @@ function cleanSnippet(raw: string, query: string): string {
   const stripped = raw
     .replace(/<[^>]{0,300}>/g, " ")
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
-    .replace(/[\x00-\x1F\x7F]/g, " ");
+    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, " "); // keep \x0A (LF) so split(/\n+/) works
   const lq = query.toLowerCase();
   // Split into lines, find lines that contain the query
   const lines = stripped.split(/\n+/).map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
