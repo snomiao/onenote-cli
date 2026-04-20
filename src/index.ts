@@ -4,7 +4,8 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as graph from "./graph";
 import { logout, whoami } from "./auth";
-import { syncCache, searchLocal, isCacheEmpty } from "./cache";
+import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, SEARCH_DB_PATH } from "./cache";
+import { stat } from "node:fs/promises";
 import { markdownToHtml } from "./markdown";
 
 const isTTY = process.stdout.isTTY ?? false;
@@ -653,6 +654,16 @@ yargs(hideBin(process.argv))
     }
   )
 
+  // --- reindex ---
+  .command(
+    "reindex",
+    "Rebuild FTS search index from existing cache (no network needed)",
+    () => {},
+    async () => {
+      await rebuildSearchIndex(console.log);
+    }
+  )
+
   // --- search ---
   .command(
     "search <query>",
@@ -662,7 +673,9 @@ yargs(hideBin(process.argv))
         .positional("query", { type: "string", demandOption: true })
         .option("online", { type: "boolean", alias: "o", describe: "Use online Graph Search API (section-level)" })
         .option("notebook", { type: "string", alias: "n", describe: "Limit to a notebook name" })
-        .option("section", { type: "string", alias: "s", describe: "Limit to a section name" }),
+        .option("section", { type: "string", alias: "s", describe: "Limit to a section name" })
+        .option("limit", { type: "number", alias: "l", default: 100, describe: "Max results per page" })
+        .option("offset", { type: "number", alias: "p", default: 0, describe: "Skip first N results (for pagination)" }),
     async (argv) => {
       if (argv.online) {
         const results = await graph.searchPages(argv.query as string);
@@ -690,14 +703,11 @@ yargs(hideBin(process.argv))
       // Local page-level search
       // Strip surrounding quotes from query (shell may pass "word" or 'word')
       const query = (argv.query as string).replace(/^["']|["']$/g, "");
-      const all = await searchLocal(query);
-      const nbFilter = normalizeRef(argv.notebook as string | undefined)?.toLowerCase();
-      const secFilter = normalizeRef(argv.section as string | undefined)?.toLowerCase();
-      const results = all.filter((r) => {
-        if (nbFilter && !String(r.notebook ?? "").toLowerCase().includes(nbFilter)) return false;
-        if (secFilter && !String(r.section ?? "").toLowerCase().includes(secFilter)) return false;
-        return true;
-      });
+      const limit = argv.limit as number;
+      const offset = argv.offset as number;
+      const nbFilter = normalizeRef(argv.notebook as string | undefined);
+      const secFilter = normalizeRef(argv.section as string | undefined);
+      const results = await searchLocal(query, { offset, limit, notebook: nbFilter, section: secFilter });
       if (results.length === 0) {
         console.log("No results found.");
         return;
@@ -735,7 +745,13 @@ yargs(hideBin(process.argv))
         }
         console.log();
       }
-      console.log(green(`${results.length} page-level results found.`));
+      let syncedStr = "";
+      try {
+        const s = await stat(SEARCH_DB_PATH);
+        syncedStr = ` • last synced: ${s.mtime.toLocaleString()}`;
+      } catch {}
+      const pageInfo = offset > 0 ? ` (offset ${offset})` : results.length === limit ? ` • use --offset ${offset + limit} for more` : "";
+      console.log(green(`${results.length} page-level results found${pageInfo}${syncedStr}.`));
     }
   )
 

@@ -3,6 +3,7 @@ import { getAccessToken } from "./auth";
 import { listNotebooks } from "./graph";
 import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { Database } from "bun:sqlite";
 
 import { homedir } from "node:os";
 import { dirname } from "node:path";
@@ -431,10 +432,136 @@ async function listSectionFiles(
   }
 }
 
+export const SEARCH_DB_PATH = join(PKG_ROOT, ".onenote", "search.db");
+
+function openSearchDb(): Database {
+  const db = new Database(SEARCH_DB_PATH, { create: true });
+  db.run("PRAGMA journal_mode=WAL");
+  db.run(`
+    CREATE TABLE IF NOT EXISTS pages (
+      id INTEGER PRIMARY KEY,
+      section TEXT NOT NULL,
+      notebook TEXT NOT NULL,
+      title TEXT,
+      body TEXT,
+      web_url TEXT,
+      page_guid TEXT
+    )
+  `);
+  db.run("CREATE INDEX IF NOT EXISTS pages_section ON pages(section, notebook)");
+  db.run(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
+      title, body,
+      content="",
+      tokenize="unicode61"
+    )
+  `);
+  return db;
+}
+
+const BINARY_BODY_LIMIT = 50_000; // chars extracted from .one binary per anchor range
+
+function asciiRatio(s: string): number {
+  if (!s.length) return 0;
+  const printable = s.split("").filter((c) => c >= "\x20" && c <= "\x7E").length;
+  return printable / s.length;
+}
+
+function cleanBodyForIndex(body: string): string {
+  // Strip binary garbage lines before FTS indexing to keep the posting list small.
+  // A line is kept if it has reasonable ASCII ratio OR contains meaningful CJK text.
+  const lines = body
+    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, " ")
+    .split(/\n+/)
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter((l) => {
+      if (l.length < 2) return false;
+      const ratio = asciiRatio(l);
+      // Keep lines with decent ASCII ratio or meaningful non-ASCII (CJK etc)
+      if (ratio >= 0.3) return true;
+      // Count CJK/Hiragana/Katakana characters (U+3000-U+9FFF, U+AC00-U+D7AF)
+      const cjk = (l.match(/[\u3000-\u9FFF\uAC00-\uD7AF]/g) ?? []).length;
+      return cjk / l.length >= 0.2;
+    });
+  return lines.join("\n");
+}
+
+function extractBinaryPageText(buf: Buffer, startOffset: number, endOffset: number): string {
+  const segment = buf.slice(startOffset, Math.min(endOffset, startOffset + BINARY_BODY_LIMIT * 3));
+  const clean = (s: string) =>
+    s.replace(/[\x00-\x1F\x7F\uFFFD]/g, " ").replace(/\s+/g, " ").trim();
+  const utf8 = clean(segment.toString("utf-8"));
+  const utf16 = clean(segment.toString("utf16le"));
+  const best = asciiRatio(utf8) >= asciiRatio(utf16) ? utf8 : utf16;
+  return best.slice(0, BINARY_BODY_LIMIT);
+}
+
+function upsertSectionToIndex(
+  db: Database,
+  section: string,
+  notebook: string,
+  pages: Array<{ title: string; body?: string; pageGuid?: string; officialUrl?: string }>,
+  webUrl: string,
+  binBuf?: Buffer,
+  anchors?: Array<{ offset: number; guid: string; title: string }>,
+  officialPages?: Array<{ guid: string | null; title: string; webUrl?: string }>
+): void {
+  // Build lookup maps
+  const officialUrlByGuid = new Map<string, { url: string; title: string }>();
+  for (const op of officialPages ?? []) {
+    if (op.guid && op.webUrl) officialUrlByGuid.set(op.guid, { url: op.webUrl, title: op.title });
+  }
+
+  db.transaction(() => {
+    // Remove old FTS entries first (content table requires explicit delete)
+    db.run(
+      `INSERT INTO pages_fts(pages_fts, rowid, title, body)
+       SELECT 'delete', id, title, body FROM pages WHERE section=? AND notebook=?`,
+      [section, notebook]
+    );
+    db.run("DELETE FROM pages WHERE section=? AND notebook=?", [section, notebook]);
+
+    const insert = db.prepare(
+      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid) VALUES (?, ?, ?, ?, ?, ?)"
+    );
+
+    if (binBuf && anchors && anchors.length > 0) {
+      const sorted = [...anchors].sort((a, b) => a.offset - b.offset);
+      const jsonBodyByGuid = new Map(pages.map((p) => [p.pageGuid, p.body]));
+      for (let i = 0; i < sorted.length; i++) {
+        const anchor = sorted[i]!;
+        const nextOffset = sorted[i + 1]?.offset ?? binBuf.length;
+        const binBody = extractBinaryPageText(binBuf, anchor.offset, nextOffset);
+        const jsonBody = jsonBodyByGuid.get(anchor.guid) ?? "";
+        const body = cleanBodyForIndex((jsonBody + " " + binBody).slice(0, BINARY_BODY_LIMIT));
+        const official = officialUrlByGuid.get(anchor.guid);
+        const url = official?.url ?? buildPageUrl(webUrl, anchor.title, anchor.guid);
+        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid);
+      }
+    } else {
+      // JSON path: no body size limit — JSON-extracted text is clean and some pages have
+      // terms appearing past 50 KB (e.g. position 2.86 MB in クイック ノート).
+      for (const p of pages) {
+        const url = p.officialUrl ?? buildPageUrl(webUrl, p.title, p.pageGuid);
+        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "");
+      }
+    }
+
+    // Rebuild FTS for this section from the pages table
+    db.run(
+      `INSERT INTO pages_fts(rowid, title, body)
+       SELECT id, title, body FROM pages WHERE section=? AND notebook=?`,
+      [section, notebook]
+    );
+  })();
+}
+
 export async function syncCache(
   onProgress?: (msg: string) => void
 ): Promise<void> {
   await ensureDir(CACHE_DIR);
+  await ensureDir(join(PKG_ROOT, ".onenote"));
+  const db = openSearchDb();
   const log = onProgress ?? console.log;
 
   const notebooks = await listNotebooks();
@@ -540,8 +667,15 @@ export async function syncCache(
       }
 
       await writeFile(cachePath, JSON.stringify(cacheData));
+      upsertSectionToIndex(
+        db, sec.name, nb.displayName, cacheData.pages, webUrl,
+        buf, // always pass buf to FTS (even >50MB sections); only disk save is gated on includeRaw
+        cacheData.anchors,
+        cacheData.officialPages
+      );
       log(`    [ok] ${sec.name} (${pages.length} pages)`);
   }
+  db.close();
   log(`Sync complete. ${downloaded} downloaded, ${skipped} up-to-date.`);
 }
 
@@ -596,17 +730,11 @@ export async function isCacheEmpty(): Promise<boolean> {
 function findAllInBinary(buf: Buffer, needle: string): number[] {
   const results: number[] = [];
   const utf8 = Buffer.from(needle, "utf-8");
-  for (let i = 0; i < buf.length - utf8.length; i++) {
-    let m = true;
-    for (let j = 0; j < utf8.length; j++) if (buf[i + j] !== utf8[j]) { m = false; break; }
-    if (m) results.push(i);
-  }
+  let pos = 0;
+  while ((pos = buf.indexOf(utf8, pos)) !== -1) { results.push(pos); pos++; }
   const utf16 = Buffer.from(needle, "utf16le");
-  for (let i = 0; i < buf.length - utf16.length; i++) {
-    let m = true;
-    for (let j = 0; j < utf16.length; j++) if (buf[i + j] !== utf16[j]) { m = false; break; }
-    if (m) results.push(i);
-  }
+  pos = 0;
+  while ((pos = buf.indexOf(utf16, pos)) !== -1) { results.push(pos); pos += 2; }
   return results;
 }
 
@@ -698,12 +826,6 @@ function extractContextFromBinary(
   return utf8Text || utf16Text;
 }
 
-function asciiRatio(s: string): number {
-  if (!s.length) return 0;
-  const printable = s.split("").filter((c) => c >= "\x20" && c <= "\x7E").length;
-  return printable / s.length;
-}
-
 function cleanSnippet(raw: string, query: string): string {
   const stripped = raw
     .replace(/<[^>]{0,300}>/g, " ")
@@ -726,101 +848,185 @@ function cleanSnippet(raw: string, query: string): string {
   return (start > 0 ? "..." : "") + excerpt + (end < best.length ? "..." : "");
 }
 
-export async function searchLocal(query: string): Promise<CachedPage[]> {
+async function searchSection(jsonPath: string, query: string): Promise<CachedPage[]> {
   const results: CachedPage[] = [];
+  try {
+    const raw = await readFile(jsonPath, "utf-8");
+    const data = JSON.parse(raw);
+
+    const binPath = jsonPath.replace(/\.json$/, ".one");
+    let binBuf: Buffer | null = null;
+    try {
+      binBuf = await readFile(binPath);
+    } catch {}
+
+    if (binBuf && data.anchors) {
+      const positions = findAllInBinary(binBuf, query);
+      const byGuid = new Map<string, { title: string; positions: number[] }>();
+      for (const pos of positions) {
+        const anchor = findOwnerPage(binBuf, data.anchors, pos);
+        if (!anchor) continue;
+        const existing = byGuid.get(anchor.guid);
+        if (existing) existing.positions.push(pos);
+        else byGuid.set(anchor.guid, { title: anchor.title, positions: [pos] });
+      }
+      const officialByGuid = new Map<string, { url: string; title: string }>();
+      for (const op of data.officialPages ?? []) {
+        if (op.guid && op.webUrl) officialByGuid.set(op.guid, { url: op.webUrl, title: op.title });
+      }
+      const bodyByGuid = new Map<string, string>();
+      for (const p of data.pages ?? []) {
+        if (p.pageGuid && p.body) bodyByGuid.set(p.pageGuid, p.body);
+      }
+      for (const [guid, info] of byGuid) {
+        const firstPos = info.positions[0]!;
+        const cleanBody = bodyByGuid.get(guid);
+        const rawContext = cleanBody ?? extractContextFromBinary(binBuf, firstPos, query);
+        const official = officialByGuid.get(guid);
+        const pageUrl = official?.url ?? buildPageUrl(data.webUrl, info.title, guid);
+        results.push({
+          title: official?.title ?? info.title,
+          body: cleanSnippet(rawContext, query),
+          section: data.section,
+          notebook: data.notebook,
+          webUrl: pageUrl,
+          pageGuid: guid,
+        });
+      }
+    } else {
+      const lowerQuery = query.toLowerCase();
+      for (const page of data.pages ?? []) {
+        if (page.body?.toLowerCase().includes(lowerQuery)) {
+          const pageUrl = page.officialUrl ?? buildPageUrl(data.webUrl, page.title, page.pageGuid);
+          results.push({
+            title: page.title,
+            body: cleanSnippet(page.body, query),
+            section: data.section,
+            notebook: data.notebook,
+            webUrl: pageUrl,
+            pageGuid: page.pageGuid,
+          });
+        }
+      }
+    }
+  } catch {}
+  return results;
+}
+
+export async function searchLocal(
+  query: string,
+  { offset = 0, limit = 100, notebook, section }: { offset?: number; limit?: number; notebook?: string; section?: string } = {}
+): Promise<CachedPage[]> {
+  // Use FTS5 index if available (built during sync)
+  try {
+    const db = new Database(SEARCH_DB_PATH, { readonly: true });
+    const ftsQuery = `"${query.replace(/"/g, '""')}"`;
+
+    const conditions: string[] = ["pages_fts MATCH ?"];
+    const params: (string | number)[] = [ftsQuery];
+    if (notebook) { conditions.push("p.notebook LIKE ?"); params.push(`%${notebook}%`); }
+    if (section) { conditions.push("p.section LIKE ?"); params.push(`%${section}%`); }
+    params.push(limit, offset);
+
+    const rows = db.query<
+      { section: string; notebook: string; title: string; body: string; web_url: string; page_guid: string },
+      (string | number)[]
+    >(
+      `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid
+       FROM pages_fts f JOIN pages p ON f.rowid = p.id
+       WHERE ${conditions.join(" AND ")} ORDER BY rank LIMIT ? OFFSET ?`
+    ).all(...params);
+    db.close();
+    return rows.map((r) => ({
+      title: r.title,
+      body: cleanSnippet(r.body, query),
+      section: r.section,
+      notebook: r.notebook,
+      webUrl: r.web_url,
+      pageGuid: r.page_guid,
+    }));
+  } catch {
+    // DB not found or FTS error — fall back to file scan
+  }
+
+  // File-scan fallback (used before first sync or if DB is missing)
+  let nbDirs: string[];
+  try {
+    nbDirs = await readdir(CACHE_DIR);
+  } catch {
+    return [];
+  }
+
+  const jsonPaths: string[] = [];
+  for (const nbName of nbDirs) {
+    const nbDir = join(CACHE_DIR, nbName);
+    try {
+      const s = await stat(nbDir);
+      if (!s.isDirectory()) continue;
+      const files = await readdir(nbDir);
+      for (const file of files) {
+        if (file.endsWith(".json")) jsonPaths.push(join(nbDir, file));
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  const CONCURRENCY = 20;
+  const allResults: CachedPage[] = [];
+  for (let i = 0; i < jsonPaths.length; i += CONCURRENCY) {
+    const chunk = jsonPaths.slice(i, i + CONCURRENCY);
+    const chunkResults = await Promise.all(chunk.map((p) => searchSection(p, query)));
+    for (const r of chunkResults) allResults.push(...r);
+  }
+
+  return allResults;
+}
+
+export async function rebuildSearchIndex(onProgress?: (msg: string) => void): Promise<void> {
+  const log = onProgress ?? console.log;
+  await ensureDir(join(PKG_ROOT, ".onenote"));
+  // Drop and recreate: contentless FTS5 DELETE has no effect on the posting list,
+  // and pages table truncation doesn't sync to FTS shadow tables.
+  const { unlink } = await import("node:fs/promises");
+  for (const ext of ["", "-shm", "-wal"]) {
+    try { await unlink(SEARCH_DB_PATH + ext); } catch {}
+  }
+  const db = openSearchDb();
 
   let nbDirs: string[];
   try {
     nbDirs = await readdir(CACHE_DIR);
   } catch {
-    return results;
+    db.close();
+    return;
   }
 
+  let count = 0;
   for (const nbName of nbDirs) {
     const nbDir = join(CACHE_DIR, nbName);
-    let files: string[];
     try {
       const s = await stat(nbDir);
       if (!s.isDirectory()) continue;
-      files = await readdir(nbDir);
-    } catch {
-      continue;
-    }
-
-    for (const file of files) {
-      if (!file.endsWith(".json")) continue;
-      try {
-        const jsonPath = join(nbDir, file);
-        const raw = await readFile(jsonPath, "utf-8");
-        const data = JSON.parse(raw);
-
-        // Try binary-based search first if .one is cached
-        const binPath = jsonPath.replace(/\.json$/, ".one");
-        let binBuf: Buffer | null = null;
+      const files = await readdir(nbDir);
+      for (const file of files) {
+        if (!file.endsWith(".json")) continue;
         try {
-          binBuf = await readFile(binPath);
+          const jsonPath = join(nbDir, file);
+          const raw = await readFile(jsonPath, "utf-8");
+          const data = JSON.parse(raw);
+          let binBuf: Buffer | undefined;
+          try { binBuf = await readFile(jsonPath.replace(/\.json$/, ".one")); } catch {}
+          upsertSectionToIndex(
+            db, data.section, data.notebook, data.pages ?? [], data.webUrl ?? "",
+            binBuf, data.anchors, data.officialPages
+          );
+          count++;
         } catch {}
-
-        if (binBuf && data.anchors) {
-          const positions = findAllInBinary(binBuf, query);
-          // Group positions by owner page (using context-based lookup)
-          const byGuid = new Map<string, { title: string; positions: number[] }>();
-          for (const pos of positions) {
-            const anchor = findOwnerPage(binBuf, data.anchors, pos);
-            if (!anchor) continue;
-            const existing = byGuid.get(anchor.guid);
-            if (existing) existing.positions.push(pos);
-            else byGuid.set(anchor.guid, { title: anchor.title, positions: [pos] });
-          }
-          // Build map of official URLs by GUID (from OneNote API)
-          const officialByGuid = new Map<string, { url: string; title: string; body?: string }>();
-          for (const op of data.officialPages ?? []) {
-            if (op.guid && op.webUrl) officialByGuid.set(op.guid, { url: op.webUrl, title: op.title });
-          }
-          // Build body map from JSON pages for clean snippets (avoids binary garbage)
-          const bodyByGuid = new Map<string, string>();
-          for (const p of data.pages ?? []) {
-            if (p.pageGuid && p.body) bodyByGuid.set(p.pageGuid, p.body);
-          }
-
-          for (const [guid, info] of byGuid) {
-            const firstPos = info.positions[0]!;
-            const cleanBody = bodyByGuid.get(guid);
-            const rawContext = cleanBody ?? extractContextFromBinary(binBuf, firstPos, query);
-            const official = officialByGuid.get(guid);
-            const pageUrl = official?.url ?? buildPageUrl(data.webUrl, info.title, guid);
-            const displayTitle = official?.title ?? info.title;
-            results.push({
-              title: displayTitle,
-              body: cleanSnippet(rawContext, query),
-              section: data.section,
-              notebook: data.notebook,
-              webUrl: pageUrl,
-              pageGuid: guid,
-            });
-          }
-        } else {
-          // Fallback: search in extracted page bodies
-          const lowerQuery = query.toLowerCase();
-          for (const page of data.pages ?? []) {
-            if (page.body?.toLowerCase().includes(lowerQuery)) {
-              const pageUrl = page.officialUrl ?? buildPageUrl(data.webUrl, page.title, page.pageGuid);
-              results.push({
-                title: page.title,
-                body: cleanSnippet(page.body, query),
-                section: data.section,
-                notebook: data.notebook,
-                webUrl: pageUrl,
-                pageGuid: page.pageGuid,
-              });
-            }
-          }
-        }
-      } catch {
-        continue;
       }
-    }
+    } catch {}
   }
 
-  return results;
+  db.close();
+  log(`Search index rebuilt: ${count} sections indexed.`);
 }

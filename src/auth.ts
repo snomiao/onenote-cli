@@ -40,7 +40,7 @@ const CONFIG_PATH = join(homedir(), ".onenote-cli", "config.json");
 
 const SCOPES = [
   "Notes.Read", "Notes.ReadWrite", "Notes.Read.All", "Notes.ReadWrite.All",
-  "Files.Read", "Files.Read.All",
+  "Files.Read", "Files.Read.All", "Files.ReadWrite", "Files.ReadWrite.All",
   "Sites.Read.All",
 ];
 

@@ -341,7 +341,24 @@ export async function renameSection(ref: string, newName: string) {
  * Rename a notebook.
  */
 export async function renameNotebook(ref: string, newName: string) {
-  const { apiBase, notebookId } = await resolveNotebookRef(ref);
+  const { apiBase, notebookId, displayName } = await resolveNotebookRef(ref);
+
+  // For site-scoped notebooks, the OneNote PATCH endpoint is not supported.
+  // Look up the DriveItem by path, then PATCH by item ID.
+  if (apiBase.startsWith("/sites/") && displayName) {
+    const siteId = apiBase.replace(/^\/sites\//, "");
+    const itemRes = await graphFetch(
+      `/sites/${siteId}/drive/root:/Notebooks/${encodeURIComponent(displayName)}:`
+    );
+    const item: any = await itemRes.json();
+    if (!item.id) throw new Error(`Could not find DriveItem for notebook '${displayName}'.`);
+    await graphFetch(`/sites/${siteId}/drive/items/${item.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: newName }),
+    });
+    return { displayName: newName };
+  }
+
   const res = await graphFetch(`${apiBase}/onenote/notebooks/${notebookId}`, {
     method: "PATCH",
     body: JSON.stringify({ displayName: newName }),
