@@ -679,7 +679,21 @@ yargs(hideBin(process.argv))
         .option("notebook", { type: "string", alias: "n", describe: "Limit to a notebook name" })
         .option("section", { type: "string", alias: "s", describe: "Limit to a section name" })
         .option("limit", { type: "number", alias: "l", default: 100, describe: "Max results per page" })
-        .option("offset", { type: "number", alias: "p", default: 0, describe: "Skip first N results (for pagination)" }),
+        .option("offset", { type: "number", alias: "p", default: 0, describe: "Skip first N results (for pagination)" })
+        .epilog(
+          [
+            "Query syntax:",
+            "  tag:todo          pages with unchecked todo checkboxes (requires: onenote sync --tags)",
+            "",
+            "Examples:",
+            "  onenote search meeting",
+            "  onenote search \"project plan\" --notebook Work",
+            "  onenote search tag:todo",
+            "  onenote search \"tag:todo buy\"",
+            "  onenote search meeting --online",
+            "  onenote search meeting --limit 20 --offset 20",
+          ].join("\n")
+        ),
     async (argv) => {
       if (argv.online) {
         const results = await graph.searchPages(argv.query as string);
