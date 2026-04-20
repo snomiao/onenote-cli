@@ -499,6 +499,56 @@ function cleanBodyForIndex(body: string): string {
   return lines.join("\n");
 }
 
+// MS-ONESTORE property markers for note tags
+const NOTE_TAGS_PROP     = Buffer.from([0x89, 0x34, 0x00, 0x40]); // 0x40003489: NoteTags property
+const ACTION_ITEM_STATUS = Buffer.from([0x70, 0x34, 0x00, 0x10]); // 0x10003470: ActionItemStatus
+
+/**
+ * Extract page GUIDs that have at least one uncompleted action-item tag (To Do, Remember for later, etc.)
+ * directly from the .one binary without any API calls.
+ *
+ * Detection: find NoteTags property (89 34 00 40) followed within 300 bytes by
+ * ActionItemStatus (70 34 00 10) where the 2-byte status value has bit0=0 (not completed).
+ * Map each match to the nearest preceding page anchor.
+ *
+ * Note: this catches ALL uncompleted action tags, not only pure To-Do checkboxes.
+ * Shape-based discrimination (shape=1 = checkbox) requires full OID resolution from the
+ * PropertySet graph and is not implemented here.
+ */
+export function extractTodoPageGuids(
+  buf: Buffer,
+  anchors: { offset: number; guid: string }[]
+): Set<string> {
+  const sorted = [...anchors].sort((a, b) => a.offset - b.offset);
+  const result = new Set<string>();
+
+  let pos = 0;
+  while (true) {
+    const idx = buf.indexOf(NOTE_TAGS_PROP, pos);
+    if (idx < 0) break;
+
+    const window = buf.slice(idx, idx + 300);
+    const aisRel = window.indexOf(ACTION_ITEM_STATUS);
+    if (aisRel >= 0) {
+      const aisAbs = idx + aisRel;
+      if (aisAbs + 6 <= buf.length) {
+        const status = buf.readUInt16LE(aisAbs + 4);
+        if ((status & 1) === 0) {
+          // uncompleted action tag — find nearest preceding anchor
+          let nearest: string | null = null;
+          for (const a of sorted) {
+            if (a.offset <= idx) nearest = a.guid;
+            else break;
+          }
+          if (nearest) result.add(nearest);
+        }
+      }
+    }
+    pos = idx + 1;
+  }
+  return result;
+}
+
 function extractBinaryPageText(buf: Buffer, startOffset: number, endOffset: number): string {
   const segment = buf.slice(startOffset, Math.min(endOffset, startOffset + BINARY_BODY_LIMIT * 3));
   const clean = (s: string) =>
@@ -517,14 +567,18 @@ function upsertSectionToIndex(
   webUrl: string,
   binBuf?: Buffer,
   anchors?: Array<{ offset: number; guid: string; title: string }>,
-  officialPages?: Array<{ guid: string | null; title: string; webUrl?: string }>,
-  hasTodoByGuid?: Map<string, boolean>
+  officialPages?: Array<{ guid: string | null; title: string; webUrl?: string }>
 ): void {
   // Build lookup maps
   const officialUrlByGuid = new Map<string, { url: string; title: string }>();
   for (const op of officialPages ?? []) {
     if (op.guid && op.webUrl) officialUrlByGuid.set(op.guid, { url: op.webUrl, title: op.title });
   }
+
+  // Extract todo page GUIDs from binary (no API calls needed)
+  const todoGuids = binBuf && anchors?.length
+    ? extractTodoPageGuids(binBuf, anchors)
+    : new Set<string>();
 
   db.transaction(() => {
     // Remove old FTS entries first (content table requires explicit delete)
@@ -550,16 +604,14 @@ function upsertSectionToIndex(
         const body = cleanBodyForIndex((jsonBody + " " + binBody).slice(0, BINARY_BODY_LIMIT));
         const official = officialUrlByGuid.get(anchor.guid);
         const url = official?.url ?? buildPageUrl(webUrl, anchor.title, anchor.guid);
-        const hasTodo = hasTodoByGuid?.has(anchor.guid) ? (hasTodoByGuid.get(anchor.guid) ? 1 : 0) : null;
+        const hasTodo = todoGuids.has(anchor.guid) ? 1 : 0;
         insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid, hasTodo);
       }
     } else {
-      // JSON path: no body size limit — JSON-extracted text is clean and some pages have
-      // terms appearing past 50 KB (e.g. position 2.86 MB in クイック ノート).
+      // JSON path: no binary available — has_todo stays NULL (unknown)
       for (const p of pages) {
         const url = p.officialUrl ?? buildPageUrl(webUrl, p.title, p.pageGuid);
-        const hasTodo = p.pageGuid && hasTodoByGuid?.has(p.pageGuid) ? (hasTodoByGuid.get(p.pageGuid) ? 1 : 0) : null;
-        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", hasTodo);
+        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", null);
       }
     }
 
@@ -572,20 +624,8 @@ function upsertSectionToIndex(
   })();
 }
 
-async function fetchPageHasTodo(pageId: string): Promise<boolean> {
-  try {
-    const res = await graphFetchRaw(`/me/onenote/pages/${pageId}/content`);
-    if (!res.ok) return false;
-    const html = await res.text();
-    return html.includes('data-tag="to-do"');
-  } catch {
-    return false;
-  }
-}
-
 export async function syncCache(
-  onProgress?: (msg: string) => void,
-  { fetchTags = false }: { fetchTags?: boolean } = {}
+  onProgress?: (msg: string) => void
 ): Promise<void> {
   await ensureDir(CACHE_DIR);
   await ensureDir(join(PKG_ROOT, ".onenote"));
@@ -662,21 +702,6 @@ export async function syncCache(
         if (guid && op.webUrl) officialUrlByGuid.set(guid, { url: op.webUrl, title: op.title });
       }
 
-      // Fetch todo tags by downloading each page's HTML (opt-in via --tags)
-      const hasTodoByGuid = new Map<string, boolean>();
-      if (fetchTags && officialPages.length > 0) {
-        log(`    fetching tags for ${officialPages.length} pages...`);
-        const CONCURRENCY = 5;
-        for (let i = 0; i < officialPages.length; i += CONCURRENCY) {
-          const batch = officialPages.slice(i, i + CONCURRENCY);
-          await Promise.all(batch.map(async (p) => {
-            const guid = pageGuidFromWebUrl(p.webUrl);
-            if (!guid) return;
-            const hasTodo = await fetchPageHasTodo(p.id);
-            hasTodoByGuid.set(guid, hasTodo);
-          }));
-        }
-      }
 
       // Save the binary as base64 for accurate position-based search
       // Limit raw cache to <50MB sections to control disk usage
@@ -715,8 +740,7 @@ export async function syncCache(
         db, sec.name, nb.displayName, cacheData.pages, webUrl,
         buf, // always pass buf to FTS (even >50MB sections); only disk save is gated on includeRaw
         cacheData.anchors,
-        cacheData.officialPages,
-        hasTodoByGuid.size > 0 ? hasTodoByGuid : undefined
+        cacheData.officialPages
       );
       log(`    [ok] ${sec.name} (${pages.length} pages)`);
   }
