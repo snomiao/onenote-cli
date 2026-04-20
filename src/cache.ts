@@ -445,9 +445,12 @@ function openSearchDb(): Database {
       title TEXT,
       body TEXT,
       web_url TEXT,
-      page_guid TEXT
+      page_guid TEXT,
+      has_todo INTEGER DEFAULT NULL
     )
   `);
+  // Migrate existing DBs that lack has_todo column
+  try { db.run("ALTER TABLE pages ADD COLUMN has_todo INTEGER DEFAULT NULL"); } catch {}
   db.run("CREATE INDEX IF NOT EXISTS pages_section ON pages(section, notebook)");
   db.run(`
     CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
@@ -457,6 +460,16 @@ function openSearchDb(): Database {
     )
   `);
   return db;
+}
+
+/** Parse `tag:xxx` tokens out of a query string. Returns text-only FTS query and extracted tags. */
+export function parseTagsFromQuery(query: string): { ftsQuery: string; hasTodo: boolean } {
+  let hasTodo = false;
+  const ftsQuery = query.replace(/\btag:(\w+)\b/gi, (_, tag) => {
+    if (tag.toLowerCase() === "todo") hasTodo = true;
+    return "";
+  }).replace(/\s+/g, " ").trim();
+  return { ftsQuery, hasTodo };
 }
 
 const BINARY_BODY_LIMIT = 50_000; // chars extracted from .one binary per anchor range
@@ -504,7 +517,8 @@ function upsertSectionToIndex(
   webUrl: string,
   binBuf?: Buffer,
   anchors?: Array<{ offset: number; guid: string; title: string }>,
-  officialPages?: Array<{ guid: string | null; title: string; webUrl?: string }>
+  officialPages?: Array<{ guid: string | null; title: string; webUrl?: string }>,
+  hasTodoByGuid?: Map<string, boolean>
 ): void {
   // Build lookup maps
   const officialUrlByGuid = new Map<string, { url: string; title: string }>();
@@ -522,7 +536,7 @@ function upsertSectionToIndex(
     db.run("DELETE FROM pages WHERE section=? AND notebook=?", [section, notebook]);
 
     const insert = db.prepare(
-      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid) VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
 
     if (binBuf && anchors && anchors.length > 0) {
@@ -536,14 +550,16 @@ function upsertSectionToIndex(
         const body = cleanBodyForIndex((jsonBody + " " + binBody).slice(0, BINARY_BODY_LIMIT));
         const official = officialUrlByGuid.get(anchor.guid);
         const url = official?.url ?? buildPageUrl(webUrl, anchor.title, anchor.guid);
-        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid);
+        const hasTodo = hasTodoByGuid?.has(anchor.guid) ? (hasTodoByGuid.get(anchor.guid) ? 1 : 0) : null;
+        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid, hasTodo);
       }
     } else {
       // JSON path: no body size limit — JSON-extracted text is clean and some pages have
       // terms appearing past 50 KB (e.g. position 2.86 MB in クイック ノート).
       for (const p of pages) {
         const url = p.officialUrl ?? buildPageUrl(webUrl, p.title, p.pageGuid);
-        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "");
+        const hasTodo = p.pageGuid && hasTodoByGuid?.has(p.pageGuid) ? (hasTodoByGuid.get(p.pageGuid) ? 1 : 0) : null;
+        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", hasTodo);
       }
     }
 
@@ -556,8 +572,20 @@ function upsertSectionToIndex(
   })();
 }
 
+async function fetchPageHasTodo(pageId: string): Promise<boolean> {
+  try {
+    const res = await graphFetchRaw(`/me/onenote/pages/${pageId}/content`);
+    if (!res.ok) return false;
+    const html = await res.text();
+    return html.includes('data-tag="to-do"');
+  } catch {
+    return false;
+  }
+}
+
 export async function syncCache(
-  onProgress?: (msg: string) => void
+  onProgress?: (msg: string) => void,
+  { fetchTags = false }: { fetchTags?: boolean } = {}
 ): Promise<void> {
   await ensureDir(CACHE_DIR);
   await ensureDir(join(PKG_ROOT, ".onenote"));
@@ -634,6 +662,22 @@ export async function syncCache(
         if (guid && op.webUrl) officialUrlByGuid.set(guid, { url: op.webUrl, title: op.title });
       }
 
+      // Fetch todo tags by downloading each page's HTML (opt-in via --tags)
+      const hasTodoByGuid = new Map<string, boolean>();
+      if (fetchTags && officialPages.length > 0) {
+        log(`    fetching tags for ${officialPages.length} pages...`);
+        const CONCURRENCY = 5;
+        for (let i = 0; i < officialPages.length; i += CONCURRENCY) {
+          const batch = officialPages.slice(i, i + CONCURRENCY);
+          await Promise.all(batch.map(async (p) => {
+            const guid = pageGuidFromWebUrl(p.webUrl);
+            if (!guid) return;
+            const hasTodo = await fetchPageHasTodo(p.id);
+            hasTodoByGuid.set(guid, hasTodo);
+          }));
+        }
+      }
+
       // Save the binary as base64 for accurate position-based search
       // Limit raw cache to <50MB sections to control disk usage
       const includeRaw = buf.length < 50 * 1024 * 1024;
@@ -671,7 +715,8 @@ export async function syncCache(
         db, sec.name, nb.displayName, cacheData.pages, webUrl,
         buf, // always pass buf to FTS (even >50MB sections); only disk save is gated on includeRaw
         cacheData.anchors,
-        cacheData.officialPages
+        cacheData.officialPages,
+        hasTodoByGuid.size > 0 ? hasTodoByGuid : undefined
       );
       log(`    [ok] ${sec.name} (${pages.length} pages)`);
   }
@@ -917,29 +962,45 @@ export async function searchLocal(
   query: string,
   { offset = 0, limit = 100, notebook, section }: { offset?: number; limit?: number; notebook?: string; section?: string } = {}
 ): Promise<CachedPage[]> {
+  const { ftsQuery, hasTodo } = parseTagsFromQuery(query);
   // Use FTS5 index if available (built during sync)
   try {
     const db = new Database(SEARCH_DB_PATH, { readonly: true });
-    const ftsQuery = `"${query.replace(/"/g, '""')}"`;
 
-    const conditions: string[] = ["pages_fts MATCH ?"];
-    const params: (string | number)[] = [ftsQuery];
-    if (notebook) { conditions.push("p.notebook LIKE ?"); params.push(`%${notebook}%`); }
-    if (section) { conditions.push("p.section LIKE ?"); params.push(`%${section}%`); }
-    params.push(limit, offset);
+    type Row = { section: string; notebook: string; title: string; body: string; web_url: string; page_guid: string };
+    let rows: Row[];
 
-    const rows = db.query<
-      { section: string; notebook: string; title: string; body: string; web_url: string; page_guid: string },
-      (string | number)[]
-    >(
-      `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid
-       FROM pages_fts f JOIN pages p ON f.rowid = p.id
-       WHERE ${conditions.join(" AND ")} ORDER BY rank LIMIT ? OFFSET ?`
-    ).all(...params);
+    if (ftsQuery) {
+      const ftsParam = `"${ftsQuery.replace(/"/g, '""')}"`;
+      const conditions: string[] = ["pages_fts MATCH ?"];
+      const params: (string | number)[] = [ftsParam];
+      if (notebook) { conditions.push("p.notebook LIKE ?"); params.push(`%${notebook}%`); }
+      if (section) { conditions.push("p.section LIKE ?"); params.push(`%${section}%`); }
+      if (hasTodo) conditions.push("p.has_todo = 1");
+      params.push(limit, offset);
+      rows = db.query<Row, (string | number)[]>(
+        `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid
+         FROM pages_fts f JOIN pages p ON f.rowid = p.id
+         WHERE ${conditions.join(" AND ")} ORDER BY rank LIMIT ? OFFSET ?`
+      ).all(...params);
+    } else {
+      // Tag-only query: scan pages table directly (no FTS)
+      const conditions: string[] = [];
+      const params: (string | number)[] = [];
+      if (notebook) { conditions.push("notebook LIKE ?"); params.push(`%${notebook}%`); }
+      if (section) { conditions.push("section LIKE ?"); params.push(`%${section}%`); }
+      if (hasTodo) conditions.push("has_todo = 1");
+      const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+      params.push(limit, offset);
+      rows = db.query<Row, (string | number)[]>(
+        `SELECT section, notebook, title, body, web_url, page_guid FROM pages ${where} ORDER BY id LIMIT ? OFFSET ?`
+      ).all(...params);
+    }
+
     db.close();
     return rows.map((r) => ({
       title: r.title,
-      body: cleanSnippet(r.body, query),
+      body: ftsQuery ? cleanSnippet(r.body, ftsQuery) : r.body?.split("\n")[0] ?? "",
       section: r.section,
       notebook: r.notebook,
       webUrl: r.web_url,

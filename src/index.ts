@@ -4,7 +4,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as graph from "./graph";
 import { logout, whoami } from "./auth";
-import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, SEARCH_DB_PATH } from "./cache";
+import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, SEARCH_DB_PATH, parseTagsFromQuery } from "./cache";
 import { stat } from "node:fs/promises";
 import { markdownToHtml } from "./markdown";
 
@@ -648,9 +648,13 @@ yargs(hideBin(process.argv))
   .command(
     "sync",
     "Download and cache all OneNote sections for local search",
-    () => {},
-    async () => {
-      await syncCache();
+    (y) =>
+      y.option("tags", {
+        type: "boolean",
+        describe: "Also fetch page HTML to detect todo tags (slower: one API call per page)",
+      }),
+    async (argv) => {
+      await syncCache(undefined, { fetchTags: !!argv.tags });
     }
   )
 
@@ -719,7 +723,8 @@ yargs(hideBin(process.argv))
           .replace(/\s{2,}/g, " ")
           .trim();
 
-      const lowerQuery = query.toLowerCase();
+      const { ftsQuery } = parseTagsFromQuery(query);
+      const lowerQuery = ftsQuery.toLowerCase();
       for (const r of results) {
         // Skip results with garbage/attachment titles
         if (/^\.[a-z0-9]{2,5}$/i.test(r.title.trim())) continue;
@@ -733,15 +738,17 @@ yargs(hideBin(process.argv))
 
         // Show context around the match with highlighted keyword
         const body = cleanSnippet(r.body);
-        const idx = body.toLowerCase().indexOf(lowerQuery);
+        const idx = lowerQuery ? body.toLowerCase().indexOf(lowerQuery) : -1;
         if (idx >= 0) {
           const start = Math.max(0, idx - 40);
-          const end = Math.min(body.length, idx + query.length + 80);
+          const end = Math.min(body.length, idx + ftsQuery.length + 80);
           const before = body.slice(start, idx);
-          const match = body.slice(idx, idx + query.length);
-          const after = body.slice(idx + query.length, end);
+          const match = body.slice(idx, idx + ftsQuery.length);
+          const after = body.slice(idx + ftsQuery.length, end);
           const snippet = (start > 0 ? "..." : "") + before + yellow(bold(match)) + after + (end < body.length ? "..." : "");
           console.log(`  ${snippet}`);
+        } else if (body) {
+          console.log(`  ${body.slice(0, 120)}`);
         }
         console.log();
       }
