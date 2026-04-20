@@ -648,13 +648,9 @@ yargs(hideBin(process.argv))
   .command(
     "sync",
     "Download and cache all OneNote sections for local search",
-    (y) =>
-      y.option("tags", {
-        type: "boolean",
-        describe: "Also fetch page HTML to detect todo tags (slower: one API call per page)",
-      }),
-    async (argv) => {
-      await syncCache(undefined, { fetchTags: !!argv.tags });
+    () => {},
+    async () => {
+      await syncCache();
     }
   )
 
@@ -683,7 +679,7 @@ yargs(hideBin(process.argv))
         .epilog(
           [
             "Query syntax:",
-            "  tag:todo          pages with unchecked todo checkboxes (requires: onenote sync --tags)",
+            "  tag:todo          pages with unchecked todo checkboxes (requires: onenote sync)",
             "",
             "Examples:",
             "  onenote search meeting",
