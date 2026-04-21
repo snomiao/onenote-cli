@@ -679,13 +679,14 @@ yargs(hideBin(process.argv))
         .epilog(
           [
             "Query syntax:",
-            "  tag:todo          pages with unchecked todo checkboxes (requires: onenote sync)",
+            "  #todo             pages with unchecked action tags (requires: onenote sync)",
+            "  tag:todo          alias for #todo",
             "",
             "Examples:",
             "  onenote search meeting",
             "  onenote search \"project plan\" --notebook Work",
-            "  onenote search tag:todo",
-            "  onenote search \"tag:todo buy\"",
+            "  onenote search \"#todo\"",
+            "  onenote search \"#todo buy\"",
             "  onenote search meeting --online",
             "  onenote search meeting --limit 20 --offset 20",
           ].join("\n")

@@ -462,13 +462,15 @@ function openSearchDb(): Database {
   return db;
 }
 
-/** Parse `tag:xxx` tokens out of a query string. Returns text-only FTS query and extracted tags. */
+/** Parse tag filters out of a query string. Returns text-only FTS query and extracted tags.
+ *  Recognizes: #todo  tag:todo  (other #words pass through to FTS unchanged)
+ */
 export function parseTagsFromQuery(query: string): { ftsQuery: string; hasTodo: boolean } {
   let hasTodo = false;
-  const ftsQuery = query.replace(/\btag:(\w+)\b/gi, (_, tag) => {
-    if (tag.toLowerCase() === "todo") hasTodo = true;
-    return "";
-  }).replace(/\s+/g, " ").trim();
+  const ftsQuery = query
+    .replace(/#todo\b/gi, () => { hasTodo = true; return ""; })
+    .replace(/\btag:todo\b/gi, () => { hasTodo = true; return ""; })
+    .replace(/\s+/g, " ").trim();
   return { ftsQuery, hasTodo };
 }
 
