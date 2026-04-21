@@ -4,7 +4,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as graph from "./graph";
 import { logout, whoami } from "./auth";
-import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, SEARCH_DB_PATH, parseTagsFromQuery } from "./cache";
+import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, retagAllSections, SEARCH_DB_PATH, parseTagsFromQuery, TAG_ALIASES } from "./cache";
 import { stat } from "node:fs/promises";
 import { markdownToHtml } from "./markdown";
 
@@ -358,7 +358,7 @@ yargs(hideBin(process.argv))
             y
               .option("section", { type: "string", alias: ["s", "section-id"], demandOption: true, describe: "Section name, path, ID, or URL" })
               .option("title", { type: "string", alias: "t", demandOption: true, describe: "Page title" })
-              .option("body", { type: "string", alias: "b", describe: "HTML body content" })
+              .option("body", { type: "string", alias: "b", describe: "HTML body content. Use data-tag to add OneNote tags: data-tag=\"to-do\" (checkbox), data-tag=\"star\", data-tag=\"question\", data-tag=\"important\", data-tag=\"critical\", data-tag=\"idea\", data-tag=\"contact\", data-tag=\"definition\", data-tag=\"highlight\", data-tag=\"password\", data-tag=\"remember-for-later\", data-tag=\"to-do:completed\" (checked)" })
               .option("md", { type: "boolean", describe: "Treat --body as Markdown and convert it to HTML" }),
           async (argv) => {
             const page = await graph.createPage(
@@ -648,9 +648,13 @@ yargs(hideBin(process.argv))
   .command(
     "sync",
     "Download and cache all OneNote sections for local search",
-    () => {},
-    async () => {
-      await syncCache();
+    (y) => y.option("retag", { type: "boolean", describe: "Re-fetch HTML tags for all cached pages without re-downloading binaries" }),
+    async (argv) => {
+      if (argv.retag) {
+        await retagAllSections(console.log);
+      } else {
+        await syncCache(console.log);
+      }
     }
   )
 
@@ -679,14 +683,33 @@ yargs(hideBin(process.argv))
         .epilog(
           [
             "Query syntax:",
-            "  #todo             pages with unchecked action tags (requires: onenote sync)",
-            "  tag:todo          alias for #todo",
+            "  term1 term2       pages containing both terms (AND)",
+            "  term1 OR term2    pages containing either term",
+            "  term1 NOT term2   pages with term1 but not term2",
+            "  \"phrase\"          exact phrase match",
+            "  #todo             pages with unchecked checkboxes (requires: onenote sync)",
+            "  #done             pages with completed (checked) checkboxes",
+            "  #checkbox         pages with any checkbox (#todo OR #done)",
+            "  #star             pages tagged with Star",
+            "  #question         pages tagged with Question",
+            "  #important        pages tagged Important",
+            "  #critical         pages tagged Critical",
+            "  #idea             pages tagged Idea",
+            "  #contact          pages tagged Contact",
+            "  #definition       pages tagged Definition",
+            "  #highlight        pages with Highlight tag",
+            "  #remember         pages tagged Remember for Later",
+            "  #book #music #movie #website #phone #address #password",
+            "  #meeting #email #callback #discuss #priority1 #priority2 #client",
+            "  tag:<name>        alias for #<name> (e.g. tag:star = #star)",
             "",
             "Examples:",
             "  onenote search meeting",
             "  onenote search \"project plan\" --notebook Work",
-            "  onenote search \"#todo\"",
-            "  onenote search \"#todo buy\"",
+            "  onenote search \"python OR javascript\"",
+            "  onenote search \"#todo buy OR groceries\"",
+            "  onenote search \"#todo\" --notebook Work",
+            "  onenote search \"#done\"",
             "  onenote search meeting --online",
             "  onenote search meeting --limit 20 --offset 20",
           ].join("\n")
@@ -727,14 +750,48 @@ yargs(hideBin(process.argv))
         console.log("No results found.");
         return;
       }
-      // Clean snippet text: remove binary noise characters
-      const cleanSnippet = (s: string) =>
-        s.replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
-          .replace(/[^\x20-\x7E\u00A0-\u024F\u0370-\u058F\u0600-\u06FF\u3000-\u30FF\u3400-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF\s.,;:!?@#\-_()[\]{}'"/\\=+<>|~`^&*%$\u2000-\u206F]/g, "")
-          .replace(/\s{2,}/g, " ")
-          .trim();
+      // Strip binary noise, then pick lines with sufficient real content for display.
+      // Higher threshold than indexing: requires ≥50% quality chars (ASCII printable or CJK).
+      const cleanSnippet = (s: string): string => {
+        const lines = s
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
+          .split(/[\n\r]+/)
+          .map((l) => l.replace(/\s+/g, " ").trim())
+          .filter((l) => {
+            if (l.length < 3) return false;
+            const ascii = (l.match(/[\x20-\x7E]/g) ?? []).length;
+            const cjk = (l.match(/[\u4E00-\u9FFF\u3000-\u30FF\uAC00-\uD7AF]/g) ?? []).length;
+            const quality = ascii + cjk;
+            if (quality / l.length < 0.5) return false;
+            // Require either decent ASCII ratio or meaningful CJK (≥3 chars)
+            return ascii / l.length >= 0.4 || (cjk >= 3 && cjk / l.length >= 0.4);
+          });
+        return lines.join(" ").replace(/\s+/g, " ").trim();
+      };
 
-      const { ftsQuery } = parseTagsFromQuery(query);
+      const { ftsQuery, hasTodo, hasDone, hasCheckbox, tagFilters } = parseTagsFromQuery(query);
+
+      // Tag display prefix: emoji per filter active
+      const TAG_EMOJI: Record<string, string> = {
+        star: "★", question: "?", important: "❗", critical: "🔴", definition: "📖",
+        idea: "💡", contact: "👤", address: "🏠", "phone-number": "📞",
+        "web-site-to-visit": "🌐", password: "🔑", "remember-for-later": "🔔",
+        "book-to-read": "📚", "music-to-listen-to": "🎵", "movie-to-see": "🎬",
+        highlight: "🖍", "schedule-meeting": "📅", "send-in-email": "📧",
+        "call-back": "📲", "to-do-priority-1": "P1", "to-do-priority-2": "P2",
+        "client-request": "👔",
+      };
+      const tagPrefix = (() => {
+        if (hasTodo) return yellow(bold("☐ "));
+        if (hasDone) return green(bold("☑ "));
+        if (hasCheckbox) return yellow(bold("☐")) + green(bold("☑ "));
+        if (tagFilters.length > 0) {
+          const icons = [...new Set(tagFilters.map((t) => TAG_EMOJI[t] ?? t))].join("");
+          return bold(icons + " ");
+        }
+        return "";
+      })();
+
       const lowerQuery = ftsQuery.toLowerCase();
       for (const r of results) {
         // Skip results with garbage/attachment titles
@@ -757,9 +814,15 @@ yargs(hideBin(process.argv))
           const match = body.slice(idx, idx + ftsQuery.length);
           const after = body.slice(idx + ftsQuery.length, end);
           const snippet = (start > 0 ? "..." : "") + before + yellow(bold(match)) + after + (end < body.length ? "..." : "");
-          console.log(`  ${snippet}`);
-        } else if (body) {
-          console.log(`  ${body.slice(0, 120)}`);
+          console.log(`  ${tagPrefix}${snippet}`);
+        } else {
+          const snippet = body.length >= 20 ? body.slice(0, 120) : null;
+          if (tagPrefix) {
+            const label = hasTodo ? "(unchecked items)" : hasDone ? "(completed items)" : hasCheckbox ? "(checkbox items)" : `(${tagFilters.join(",")})`;
+            console.log(`  ${tagPrefix}${snippet ?? label}`);
+          } else if (snippet) {
+            console.log(`  ${snippet}`);
+          }
         }
         console.log();
       }

@@ -190,6 +190,43 @@ function bufToGuid(b: Buffer, off: number): string {
   ].join("-");
 }
 
+function guidToBuf(guid: string): Buffer {
+  const p = guid.replace(/-/g, "");
+  const b = Buffer.alloc(16);
+  b.writeUInt32LE(parseInt(p.slice(0, 8), 16), 0);
+  b.writeUInt16LE(parseInt(p.slice(8, 12), 16), 4);
+  b.writeUInt16LE(parseInt(p.slice(12, 16), 16), 6);
+  Buffer.from(p.slice(16, 32), "hex").copy(b, 8);
+  return b;
+}
+
+/**
+ * Expand first-occurrence anchors to include ALL binary occurrences of each known GUID.
+ * The .one format stores page objects non-contiguously; using only first occurrences as
+ * boundaries causes NTP/AIS pairs from later chunks of page A to be attributed to page B.
+ */
+function expandAnchorsToAllOccurrences(
+  buf: Buffer,
+  anchors: { offset: number; guid: string }[]
+): { offset: number; guid: string }[] {
+  const guidHexToGuid = new Map<string, string>();
+  for (const { guid } of anchors) {
+    guidHexToGuid.set(guidToBuf(guid).toString("hex"), guid);
+  }
+  const SIZE_MARKER = Buffer.from([0x10, 0x00, 0x00, 0x00]);
+  const result: { offset: number; guid: string }[] = [];
+  let pos = 0;
+  while (pos < buf.length - 20) {
+    const markerPos = buf.indexOf(SIZE_MARKER, pos);
+    if (markerPos < 0) break;
+    const guidHex = buf.slice(markerPos + 4, markerPos + 20).toString("hex");
+    const guid = guidHexToGuid.get(guidHex);
+    if (guid) result.push({ offset: markerPos, guid });
+    pos = markerPos + 1;
+  }
+  return result;
+}
+
 /**
  * Extract (pageGuid, title, offset) tuples from .one binary.
  * Pattern: [UTF-16LE title] 00 00 [10 00 00 00] [16-byte GUID]
@@ -373,20 +410,20 @@ async function getSectionWebUrl(drivePath: string): Promise<string> {
 async function getOneNotePagesForSection(
   sectionGuid: string
 ): Promise<{ id: string; title: string; webUrl: string }[]> {
+  const results: { id: string; title: string; webUrl: string }[] = [];
+  let url: string | null = `/me/onenote/sections/0-${sectionGuid}/pages?$select=id,title,links&$top=100`;
   try {
-    const res = await graphFetchRaw(
-      `/me/onenote/sections/0-${sectionGuid}/pages?$select=id,title,links&$top=100`
-    );
-    if (!res.ok) return [];
-    const data = (await res.json()) as any;
-    return (data.value ?? []).map((p: any) => ({
-      id: p.id,
-      title: p.title ?? "",
-      webUrl: p.links?.oneNoteWebUrl?.href ?? "",
-    }));
-  } catch {
-    return [];
-  }
+    while (url) {
+      const res = await graphFetchRaw(url);
+      if (!res.ok) break;
+      const data = (await res.json()) as any;
+      for (const p of data.value ?? []) {
+        results.push({ id: p.id, title: p.title ?? "", webUrl: p.links?.oneNoteWebUrl?.href ?? "" });
+      }
+      url = data["@odata.nextLink"] ?? null;
+    }
+  } catch {}
+  return results;
 }
 
 /**
@@ -434,6 +471,33 @@ async function listSectionFiles(
 
 export const SEARCH_DB_PATH = join(PKG_ROOT, ".onenote", "search.db");
 
+// Maps #alias → OneNote data-tag value(s). Multiple values = OR match.
+export const TAG_ALIASES: Record<string, string[]> = {
+  star:        ["star"],
+  question:    ["question"],
+  important:   ["important"],
+  critical:    ["critical"],
+  definition:  ["definition"],
+  idea:        ["idea"],
+  contact:     ["contact"],
+  address:     ["address"],
+  phone:       ["phone-number"],
+  website:     ["web-site-to-visit"],
+  password:    ["password"],
+  remember:    ["remember-for-later"],
+  book:        ["book-to-read"],
+  music:       ["music-to-listen-to"],
+  movie:       ["movie-to-see"],
+  highlight:   ["highlight"],
+  meeting:     ["schedule-meeting"],
+  email:       ["send-in-email"],
+  callback:    ["call-back"],
+  discuss:     ["discuss-with-person-a", "discuss-with-person-b", "discuss-with-manager"],
+  priority1:   ["to-do-priority-1"],
+  priority2:   ["to-do-priority-2"],
+  client:      ["client-request"],
+};
+
 function openSearchDb(): Database {
   const db = new Database(SEARCH_DB_PATH, { create: true });
   db.run("PRAGMA journal_mode=WAL");
@@ -446,11 +510,15 @@ function openSearchDb(): Database {
       body TEXT,
       web_url TEXT,
       page_guid TEXT,
-      has_todo INTEGER DEFAULT NULL
+      has_todo INTEGER DEFAULT NULL,
+      has_done INTEGER DEFAULT NULL,
+      tags TEXT DEFAULT NULL
     )
   `);
-  // Migrate existing DBs that lack has_todo column
+  // Migrate existing DBs that lack these columns
   try { db.run("ALTER TABLE pages ADD COLUMN has_todo INTEGER DEFAULT NULL"); } catch {}
+  try { db.run("ALTER TABLE pages ADD COLUMN has_done INTEGER DEFAULT NULL"); } catch {}
+  try { db.run("ALTER TABLE pages ADD COLUMN tags TEXT DEFAULT NULL"); } catch {}
   db.run("CREATE INDEX IF NOT EXISTS pages_section ON pages(section, notebook)");
   db.run(`
     CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
@@ -463,15 +531,56 @@ function openSearchDb(): Database {
 }
 
 /** Parse tag filters out of a query string. Returns text-only FTS query and extracted tags.
- *  Recognizes: #todo  tag:todo  (other #words pass through to FTS unchanged)
+ *  Recognizes: #todo  tag:todo  #done  tag:done
  */
-export function parseTagsFromQuery(query: string): { ftsQuery: string; hasTodo: boolean } {
+/**
+ * Build an FTS5 MATCH parameter from a user query string.
+ * - Explicit boolean operators (AND/OR/NOT, case-insensitive) are normalized to uppercase.
+ * - Otherwise each space-separated token is quoted for exact-term matching (implicit AND).
+ * - User-supplied "quoted phrases" are preserved as-is.
+ */
+export function buildFtsParam(query: string): string {
+  if (/\b(AND|OR|NOT)\b/i.test(query)) {
+    // Normalize operators to uppercase; preserve user-quoted phrases
+    return query.replace(/\b(AND|OR|NOT)\b/gi, (m) => m.toUpperCase());
+  }
+  // Split preserving quoted phrases, then quote individual bare terms
+  const tokens = query.match(/(?:"[^"]*"|[^\s]+)/g) ?? [];
+  return tokens
+    .map((t) => (t.startsWith('"') ? t : `"${t.replace(/"/g, '""')}"`))
+    .join(" ");
+}
+
+export function parseTagsFromQuery(query: string): {
+  ftsQuery: string;
+  hasTodo: boolean;
+  hasDone: boolean;
+  hasCheckbox: boolean;
+  tagFilters: string[]; // OneNote data-tag values to filter by (OR within each alias group, AND across groups)
+} {
   let hasTodo = false;
-  const ftsQuery = query
+  let hasDone = false;
+  let hasCheckbox = false;
+  const tagFilters: string[] = [];
+
+  let ftsQuery = query
+    .replace(/#checkbox\b/gi, () => { hasCheckbox = true; return ""; })
+    .replace(/\btag:checkbox\b/gi, () => { hasCheckbox = true; return ""; })
     .replace(/#todo\b/gi, () => { hasTodo = true; return ""; })
     .replace(/\btag:todo\b/gi, () => { hasTodo = true; return ""; })
-    .replace(/\s+/g, " ").trim();
-  return { ftsQuery, hasTodo };
+    .replace(/#done\b/gi, () => { hasDone = true; return ""; })
+    .replace(/\btag:done\b/gi, () => { hasDone = true; return ""; });
+
+  // Replace all known #alias and tag:alias patterns
+  for (const [alias, tagValues] of Object.entries(TAG_ALIASES)) {
+    const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    ftsQuery = ftsQuery
+      .replace(new RegExp(`#${escaped}\\b`, "gi"), () => { tagFilters.push(...tagValues); return ""; })
+      .replace(new RegExp(`\\btag:${escaped}\\b`, "gi"), () => { tagFilters.push(...tagValues); return ""; });
+  }
+
+  ftsQuery = ftsQuery.replace(/\s+/g, " ").trim();
+  return { ftsQuery, hasTodo, hasDone, hasCheckbox, tagFilters };
 }
 
 const BINARY_BODY_LIMIT = 50_000; // chars extracted from .one binary per anchor range
@@ -520,9 +629,10 @@ const ACTION_ITEM_STATUS = Buffer.from([0x70, 0x34, 0x00, 0x10]); // 0x10003470:
 export function extractTodoPageGuids(
   buf: Buffer,
   anchors: { offset: number; guid: string }[]
-): Set<string> {
-  const sorted = [...anchors].sort((a, b) => a.offset - b.offset);
-  const result = new Set<string>();
+): { todo: Set<string>; done: Set<string> } {
+  const sorted = expandAnchorsToAllOccurrences(buf, anchors).sort((a, b) => a.offset - b.offset);
+  const todo = new Set<string>();
+  const done = new Set<string>();
 
   let pos = 0;
   while (true) {
@@ -533,20 +643,63 @@ export function extractTodoPageGuids(
     const aisRel = window.indexOf(ACTION_ITEM_STATUS);
     if (aisRel >= 0) {
       const aisAbs = idx + aisRel;
-      if (aisAbs + 6 <= buf.length) {
-        const status = buf.readUInt16LE(aisAbs + 4);
-        if ((status & 1) === 0) {
-          // uncompleted action tag — find nearest preceding anchor
-          let nearest: string | null = null;
+      // ActionItemStatus is a uint16 at AIS_prid_pos + 12.
+      // The 8 bytes at +4..+11 are the FILETIME data for the preceding property (0x1400346f).
+      // Empirically verified: status=0=unchecked, status=1=completed.
+      if (aisAbs + 14 <= buf.length) {
+        const status = buf.readUInt16LE(aisAbs + 12);
+        if (status === 0 || status === 1) {
+          // find nearest anchor (preceding, or following if very close)
+          // MS-ONESTORE stores page content before the page GUID marker, so a NTP that falls
+          // just before the next anchor likely belongs to that next page.
+          let preceding: { offset: number; guid: string } | null = null;
+          let following: { offset: number; guid: string } | null = null;
           for (const a of sorted) {
-            if (a.offset <= idx) nearest = a.guid;
-            else break;
+            if (a.offset <= idx) preceding = a;
+            else { following = a; break; }
           }
-          if (nearest) result.add(nearest);
+          const LOOKAHEAD = 1000; // bytes: prefer following anchor if it's this close
+          const nearest =
+            following && following.offset - idx < LOOKAHEAD ? following.guid : preceding?.guid ?? null;
+          if (nearest) {
+            if (status === 0) todo.add(nearest);
+            else done.add(nearest);
+          }
         }
       }
     }
     pos = idx + 1;
+  }
+  return { todo, done };
+}
+
+/**
+ * Fetch page HTML content from OneNote API and collect all data-tag values per page.
+ * Returns: guid → sorted unique tag values (e.g. ["star", "to-do", "to-do:completed"])
+ */
+async function fetchTagsFromHtml(
+  pages: Array<{ apiId: string; guid: string }>,
+  onProgress?: (msg: string) => void
+): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>();
+  for (const page of pages) {
+    try {
+      const res = await graphFetchRaw(`/me/onenote/pages/${page.apiId}/content`);
+      if (!res.ok) continue;
+      const html = await res.text();
+      const found = new Set<string>();
+      // Match all data-tag="..." attributes (may contain space-separated multiple tags)
+      for (const m of html.matchAll(/data-tag="([^"]+)"/g)) {
+        for (const tag of m[1].split(/[\s,]+/)) {
+          if (tag) found.add(tag);
+        }
+      }
+      if (found.size > 0) {
+        const sorted = [...found].sort();
+        result.set(page.guid, sorted);
+        onProgress?.(`    [tags:${sorted.join(",")}] ${page.guid}`);
+      }
+    } catch {}
   }
   return result;
 }
@@ -569,7 +722,8 @@ function upsertSectionToIndex(
   webUrl: string,
   binBuf?: Buffer,
   anchors?: Array<{ offset: number; guid: string; title: string }>,
-  officialPages?: Array<{ guid: string | null; title: string; webUrl?: string }>
+  officialPages?: Array<{ guid: string | null; title: string; webUrl?: string; apiId?: string }>,
+  htmlTags?: Map<string, string[]>
 ): void {
   // Build lookup maps
   const officialUrlByGuid = new Map<string, { url: string; title: string }>();
@@ -577,10 +731,27 @@ function upsertSectionToIndex(
     if (op.guid && op.webUrl) officialUrlByGuid.set(op.guid, { url: op.webUrl, title: op.title });
   }
 
-  // Extract todo page GUIDs from binary (no API calls needed)
-  const todoGuids = binBuf && anchors?.length
+  // Binary detection as fallback for pages not covered by HTML fetch
+  const binaryGuids = binBuf && anchors?.length
     ? extractTodoPageGuids(binBuf, anchors)
-    : new Set<string>();
+    : { todo: new Set<string>(), done: new Set<string>() };
+
+  // Pages checked via HTML: use HTML result (accurate). Others: use binary (fallback).
+  const officialGuidSet = new Set(officialUrlByGuid.keys());
+  const getHasTodo = (guid: string): 0 | 1 => {
+    if (htmlTags && officialGuidSet.has(guid)) return (htmlTags.get(guid) ?? []).includes("to-do") ? 1 : 0;
+    return binaryGuids.todo.has(guid) ? 1 : 0;
+  };
+  const getHasDone = (guid: string): 0 | 1 => {
+    if (htmlTags && officialGuidSet.has(guid)) return (htmlTags.get(guid) ?? []).includes("to-do:completed") ? 1 : 0;
+    return binaryGuids.done.has(guid) ? 1 : 0;
+  };
+  // tags column: pipe-delimited tag list, e.g. "|star|to-do|" for LIKE '%|star|%' matching
+  const getTagsStr = (guid: string): string | null => {
+    const t = htmlTags?.get(guid);
+    if (!t || t.length === 0) return null;
+    return `|${t.join("|")}|`;
+  };
 
   db.transaction(() => {
     // Remove old FTS entries first (content table requires explicit delete)
@@ -592,7 +763,7 @@ function upsertSectionToIndex(
     db.run("DELETE FROM pages WHERE section=? AND notebook=?", [section, notebook]);
 
     const insert = db.prepare(
-      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo, has_done, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
 
     if (binBuf && anchors && anchors.length > 0) {
@@ -606,14 +777,13 @@ function upsertSectionToIndex(
         const body = cleanBodyForIndex((jsonBody + " " + binBody).slice(0, BINARY_BODY_LIMIT));
         const official = officialUrlByGuid.get(anchor.guid);
         const url = official?.url ?? buildPageUrl(webUrl, anchor.title, anchor.guid);
-        const hasTodo = todoGuids.has(anchor.guid) ? 1 : 0;
-        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid, hasTodo);
+        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid, getHasTodo(anchor.guid), getHasDone(anchor.guid), getTagsStr(anchor.guid));
       }
     } else {
-      // JSON path: no binary available — has_todo stays NULL (unknown)
+      // JSON path: no binary available — tag columns stay NULL (unknown)
       for (const p of pages) {
         const url = p.officialUrl ?? buildPageUrl(webUrl, p.title, p.pageGuid);
-        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", null);
+        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", null, null, null);
       }
     }
 
@@ -699,11 +869,19 @@ export async function syncCache(
         : [];
       // Map: pageGuid -> official webUrl (extract GUID from webUrl, not from id)
       const officialUrlByGuid = new Map<string, { url: string; title: string }>();
+      const officialApiIdByGuid = new Map<string, string>();
       for (const op of officialPages) {
         const guid = pageGuidFromWebUrl(op.webUrl);
-        if (guid && op.webUrl) officialUrlByGuid.set(guid, { url: op.webUrl, title: op.title });
+        if (guid && op.webUrl) {
+          officialUrlByGuid.set(guid, { url: op.webUrl, title: op.title });
+          officialApiIdByGuid.set(guid, op.id);
+        }
       }
 
+      // Fetch HTML for each official page to collect all tag types
+      const pagesForHtml = [...officialApiIdByGuid.entries()].map(([guid, apiId]) => ({ guid, apiId }));
+      if (pagesForHtml.length > 0) log(`    fetching tags (${pagesForHtml.length} pages)...`);
+      const htmlTags = await fetchTagsFromHtml(pagesForHtml, log);
 
       // Save the binary as base64 for accurate position-based search
       // Limit raw cache to <50MB sections to control disk usage
@@ -725,6 +903,7 @@ export async function syncCache(
           guid: pageGuidFromWebUrl(p.webUrl),
           title: p.title,
           webUrl: p.webUrl,
+          apiId: p.id,
         })),
         anchors: guidEntries.map((e) => ({ offset: e.offset, guid: e.guid, title: e.title })),
         rawSize: buf.length,
@@ -742,7 +921,8 @@ export async function syncCache(
         db, sec.name, nb.displayName, cacheData.pages, webUrl,
         buf, // always pass buf to FTS (even >50MB sections); only disk save is gated on includeRaw
         cacheData.anchors,
-        cacheData.officialPages
+        cacheData.officialPages,
+        htmlTags
       );
       log(`    [ok] ${sec.name} (${pages.length} pages)`);
   }
@@ -988,7 +1168,7 @@ export async function searchLocal(
   query: string,
   { offset = 0, limit = 100, notebook, section }: { offset?: number; limit?: number; notebook?: string; section?: string } = {}
 ): Promise<CachedPage[]> {
-  const { ftsQuery, hasTodo } = parseTagsFromQuery(query);
+  const { ftsQuery, hasTodo, hasDone, hasCheckbox, tagFilters } = parseTagsFromQuery(query);
   // Use FTS5 index if available (built during sync)
   try {
     const db = new Database(SEARCH_DB_PATH, { readonly: true });
@@ -996,15 +1176,26 @@ export async function searchLocal(
     type Row = { section: string; notebook: string; title: string; body: string; web_url: string; page_guid: string };
     let rows: Row[];
 
+    // Build tag filter SQL: each tagFilter value needs tags LIKE '%|value|%'
+    const addTagConditions = (conditions: string[], params: (string | number | null)[], prefix = "") => {
+      if (hasTodo) conditions.push(`${prefix}has_todo = 1`);
+      if (hasDone) conditions.push(`${prefix}has_done = 1`);
+      if (hasCheckbox) conditions.push(`(${prefix}has_todo = 1 OR ${prefix}has_done = 1)`);
+      for (const tagVal of tagFilters) {
+        conditions.push(`${prefix}tags LIKE ?`);
+        params.push(`%|${tagVal}|%`);
+      }
+    };
+
     if (ftsQuery) {
-      const ftsParam = `"${ftsQuery.replace(/"/g, '""')}"`;
+      const ftsParam = buildFtsParam(ftsQuery);
       const conditions: string[] = ["pages_fts MATCH ?"];
-      const params: (string | number)[] = [ftsParam];
+      const params: (string | number | null)[] = [ftsParam];
       if (notebook) { conditions.push("p.notebook LIKE ?"); params.push(`%${notebook}%`); }
       if (section) { conditions.push("p.section LIKE ?"); params.push(`%${section}%`); }
-      if (hasTodo) conditions.push("p.has_todo = 1");
+      addTagConditions(conditions, params, "p.");
       params.push(limit, offset);
-      rows = db.query<Row, (string | number)[]>(
+      rows = db.query<Row, (string | number | null)[]>(
         `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid
          FROM pages_fts f JOIN pages p ON f.rowid = p.id
          WHERE ${conditions.join(" AND ")} ORDER BY rank LIMIT ? OFFSET ?`
@@ -1012,13 +1203,13 @@ export async function searchLocal(
     } else {
       // Tag-only query: scan pages table directly (no FTS)
       const conditions: string[] = [];
-      const params: (string | number)[] = [];
+      const params: (string | number | null)[] = [];
       if (notebook) { conditions.push("notebook LIKE ?"); params.push(`%${notebook}%`); }
       if (section) { conditions.push("section LIKE ?"); params.push(`%${section}%`); }
-      if (hasTodo) conditions.push("has_todo = 1");
+      addTagConditions(conditions, params);
       const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
       params.push(limit, offset);
-      rows = db.query<Row, (string | number)[]>(
+      rows = db.query<Row, (string | number | null)[]>(
         `SELECT section, notebook, title, body, web_url, page_guid FROM pages ${where} ORDER BY id LIMIT ? OFFSET ?`
       ).all(...params);
     }
@@ -1068,6 +1259,71 @@ export async function searchLocal(
   }
 
   return allResults;
+}
+
+/**
+ * Fetch HTML tags for all cached sections without re-downloading binaries.
+ * Faster than full sync when only tag data needs to be refreshed.
+ */
+export async function retagAllSections(onProgress?: (msg: string) => void): Promise<void> {
+  const log = onProgress ?? console.log;
+  const db = openSearchDb();
+  const updateStmt = db.prepare("UPDATE pages SET tags=?, has_todo=?, has_done=? WHERE page_guid=? AND section=? AND notebook=?");
+
+  let nbDirs: string[];
+  try { nbDirs = await readdir(CACHE_DIR); } catch { db.close(); return; }
+
+  let totalPages = 0;
+  let taggedPages = 0;
+  for (const nbName of nbDirs) {
+    const nbDir = join(CACHE_DIR, nbName);
+    try {
+      const s = await stat(nbDir);
+      if (!s.isDirectory()) continue;
+      const files = await readdir(nbDir);
+      for (const file of files) {
+        if (!file.endsWith(".json")) continue;
+        try {
+          const raw = await readFile(join(nbDir, file), "utf-8");
+          const data = JSON.parse(raw);
+          const webUrl: string = data.webUrl ?? "";
+          const section: string = data.section ?? "";
+          const notebook: string = data.notebook ?? "";
+
+          // Get sectionGuid from webUrl
+          const m = webUrl.match(/sourcedoc=%7B([0-9a-f-]+)%7D/i);
+          if (!m) continue;
+          const sectionGuid = m[1].toLowerCase();
+
+          log(`  ${notebook}/${section}`);
+          const officialPages = await getOneNotePagesForSection(sectionGuid);
+          if (officialPages.length === 0) continue;
+
+          const pagesForHtml = officialPages
+            .map((p) => {
+              const guid = pageGuidFromWebUrl(p.webUrl);
+              return guid ? { guid, apiId: p.id } : null;
+            })
+            .filter(Boolean) as { guid: string; apiId: string }[];
+
+          const htmlTags = await fetchTagsFromHtml(pagesForHtml, log);
+          totalPages += pagesForHtml.length;
+          taggedPages += htmlTags.size;
+
+          db.transaction(() => {
+            for (const [guid, tags] of htmlTags) {
+              const tagsStr = `|${tags.join("|")}|`;
+              const hasTodo = tags.includes("to-do") ? 1 : 0;
+              const hasDone = tags.includes("to-do:completed") ? 1 : 0;
+              updateStmt.run(tagsStr, hasTodo, hasDone, guid, section, notebook);
+            }
+          })();
+        } catch {}
+      }
+    } catch {}
+  }
+  db.close();
+  log(`Retag complete. ${taggedPages} tagged / ${totalPages} total pages.`);
 }
 
 export async function rebuildSearchIndex(onProgress?: (msg: string) => void): Promise<void> {
