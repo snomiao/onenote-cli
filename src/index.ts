@@ -4,7 +4,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as graph from "./graph";
 import { logout, whoami } from "./auth";
-import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, retagAllSections, SEARCH_DB_PATH, parseTagsFromQuery, TAG_ALIASES } from "./cache";
+import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, SEARCH_DB_PATH, parseTagsFromQuery, TAG_ALIASES } from "./cache";
 import { stat } from "node:fs/promises";
 import { markdownToHtml } from "./markdown";
 
@@ -648,13 +648,9 @@ yargs(hideBin(process.argv))
   .command(
     "sync",
     "Download and cache all OneNote sections for local search",
-    (y) => y.option("retag", { type: "boolean", describe: "Re-fetch HTML tags for all cached pages without re-downloading binaries" }),
-    async (argv) => {
-      if (argv.retag) {
-        await retagAllSections(console.log);
-      } else {
-        await syncCache(console.log);
-      }
+    () => {},
+    async () => {
+      await syncCache();
     }
   )
 
