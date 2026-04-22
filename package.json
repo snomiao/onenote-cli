@@ -22,7 +22,10 @@
   },
   "dependencies": {
     "@azure/msal-node": "^2.16.0",
+    "@types/react": "^19.2.14",
+    "ink": "^7.0.1",
     "pretty-bytes": "^7.1.0",
+    "react": "^19.2.5",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
