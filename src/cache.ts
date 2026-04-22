@@ -53,11 +53,11 @@ async function graphFetchRaw(path: string): Promise<Response> {
     ? path
     : `https://graph.microsoft.com/v1.0${path}`;
   // Retry on 429 (rate limit) with exponential backoff, respecting Retry-After header
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 8; attempt++) {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (res.status !== 429) return res;
     const retryAfter = parseInt(res.headers.get("retry-after") ?? "0", 10);
-    const delayMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(1000 * 2 ** attempt, 30000);
+    const delayMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(5000 * 2 ** attempt, 120000);
     await new Promise((r) => setTimeout(r, delayMs));
   }
   return fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -1297,8 +1297,10 @@ export async function searchLocal(
       addTagConditions(conditions, params);
       const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
       params.push(limit, offset);
+      // Prefer pages with actual tag_lines (fetched from HTML) over binary-only detections
       rows = db.query<Row, (string | number | null)[]>(
-        `SELECT section, notebook, title, body, web_url, page_guid, tag_lines FROM pages ${where} ORDER BY id LIMIT ? OFFSET ?`
+        `SELECT section, notebook, title, body, web_url, page_guid, tag_lines FROM pages ${where}
+         ORDER BY (tag_lines IS NOT NULL) DESC, id LIMIT ? OFFSET ?`
       ).all(...params);
     }
 
