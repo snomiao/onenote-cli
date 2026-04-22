@@ -109,7 +109,7 @@ interface GraphResponse<T> {
 async function graphFetch(path: string, init?: RequestInit): Promise<Response> {
   const token = await getAccessToken();
   const url = path.startsWith("http") ? path : `${GRAPH_BASE}${path}`;
-  const res = await fetch(url, {
+  const doFetch = () => fetch(url, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -117,6 +117,14 @@ async function graphFetch(path: string, init?: RequestInit): Promise<Response> {
       ...init?.headers,
     },
   });
+  let res = await doFetch();
+  // Retry on 429 with Retry-After / exponential backoff
+  for (let attempt = 0; attempt < 5 && res.status === 429; attempt++) {
+    const retryAfter = parseInt(res.headers.get("retry-after") ?? "0", 10);
+    const delayMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(2000 * 2 ** attempt, 60000);
+    await new Promise((r) => setTimeout(r, delayMs));
+    res = await doFetch();
+  }
   if (!res.ok) {
     const body = await res.text();
     let code = "";

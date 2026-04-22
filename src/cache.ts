@@ -22,6 +22,7 @@ interface CachedPage {
   notebook: string;
   webUrl: string; // OneNote Online URL for this page (section + page GUID)
   pageGuid?: string;
+  tagLines?: Array<{ tag: string; text: string }>; // text content of tagged elements
 }
 
 interface CacheIndex {
@@ -51,9 +52,15 @@ async function graphFetchRaw(path: string): Promise<Response> {
   const url = path.startsWith("http")
     ? path
     : `https://graph.microsoft.com/v1.0${path}`;
-  return fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  // Retry on 429 (rate limit) with exponential backoff, respecting Retry-After header
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.status !== 429) return res;
+    const retryAfter = parseInt(res.headers.get("retry-after") ?? "0", 10);
+    const delayMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(1000 * 2 ** attempt, 30000);
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 }
 
 function isReadableChar(code: number): boolean {
@@ -512,13 +519,15 @@ function openSearchDb(): Database {
       page_guid TEXT,
       has_todo INTEGER DEFAULT NULL,
       has_done INTEGER DEFAULT NULL,
-      tags TEXT DEFAULT NULL
+      tags TEXT DEFAULT NULL,
+      tag_lines TEXT DEFAULT NULL
     )
   `);
   // Migrate existing DBs that lack these columns
   try { db.run("ALTER TABLE pages ADD COLUMN has_todo INTEGER DEFAULT NULL"); } catch {}
   try { db.run("ALTER TABLE pages ADD COLUMN has_done INTEGER DEFAULT NULL"); } catch {}
   try { db.run("ALTER TABLE pages ADD COLUMN tags TEXT DEFAULT NULL"); } catch {}
+  try { db.run("ALTER TABLE pages ADD COLUMN tag_lines TEXT DEFAULT NULL"); } catch {}
   db.run("CREATE INDEX IF NOT EXISTS pages_section ON pages(section, notebook)");
   db.run(`
     CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
@@ -673,30 +682,63 @@ export function extractTodoPageGuids(
   return { todo, done };
 }
 
+export type PageTagInfo = {
+  tags: string[]; // unique sorted tag values
+  lines: Array<{ tag: string; text: string }>; // text of each tagged element
+};
+
+function stripHtml(s: string): string {
+  return s
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Extract text of each tagged element from OneNote HTML */
+export function extractTagLines(html: string): Array<{ tag: string; text: string }> {
+  const lines: Array<{ tag: string; text: string }> = [];
+  // Matches elements with data-tag attribute and captures content up to closing tag.
+  // Uses non-greedy match; OneNote generally doesn't nest tagged elements.
+  const re = /<(\w+)([^>]*?)\s+data-tag="([^"]+)"([^>]*)>([\s\S]*?)<\/\1>/gi;
+  for (const m of html.matchAll(re)) {
+    const tagValues = m[3].split(/[\s,]+/).filter(Boolean);
+    const text = stripHtml(m[5]).slice(0, 200);
+    if (text.length > 0) {
+      for (const t of tagValues) lines.push({ tag: t, text });
+    }
+  }
+  return lines;
+}
+
 /**
- * Fetch page HTML content from OneNote API and collect all data-tag values per page.
- * Returns: guid → sorted unique tag values (e.g. ["star", "to-do", "to-do:completed"])
+ * Fetch page HTML content from OneNote API and collect all data-tag values + text per page.
  */
 async function fetchTagsFromHtml(
   pages: Array<{ apiId: string; guid: string }>,
   onProgress?: (msg: string) => void
-): Promise<Map<string, string[]>> {
-  const result = new Map<string, string[]>();
+): Promise<Map<string, PageTagInfo>> {
+  const result = new Map<string, PageTagInfo>();
   for (const page of pages) {
     try {
       const res = await graphFetchRaw(`/me/onenote/pages/${page.apiId}/content`);
       if (!res.ok) continue;
       const html = await res.text();
       const found = new Set<string>();
-      // Match all data-tag="..." attributes (may contain space-separated multiple tags)
       for (const m of html.matchAll(/data-tag="([^"]+)"/g)) {
         for (const tag of m[1].split(/[\s,]+/)) {
           if (tag) found.add(tag);
         }
       }
+      const lines = extractTagLines(html);
       if (found.size > 0) {
         const sorted = [...found].sort();
-        result.set(page.guid, sorted);
+        result.set(page.guid, { tags: sorted, lines });
         onProgress?.(`    [tags:${sorted.join(",")}] ${page.guid}`);
       }
     } catch {}
@@ -723,7 +765,7 @@ function upsertSectionToIndex(
   binBuf?: Buffer,
   anchors?: Array<{ offset: number; guid: string; title: string }>,
   officialPages?: Array<{ guid: string | null; title: string; webUrl?: string; apiId?: string }>,
-  htmlTags?: Map<string, string[]>
+  htmlTags?: Map<string, PageTagInfo>
 ): void {
   // Build lookup maps
   const officialUrlByGuid = new Map<string, { url: string; title: string }>();
@@ -739,18 +781,24 @@ function upsertSectionToIndex(
   // Pages checked via HTML: use HTML result (accurate). Others: use binary (fallback).
   const officialGuidSet = new Set(officialUrlByGuid.keys());
   const getHasTodo = (guid: string): 0 | 1 => {
-    if (htmlTags && officialGuidSet.has(guid)) return (htmlTags.get(guid) ?? []).includes("to-do") ? 1 : 0;
+    if (htmlTags && officialGuidSet.has(guid)) return (htmlTags.get(guid)?.tags ?? []).includes("to-do") ? 1 : 0;
     return binaryGuids.todo.has(guid) ? 1 : 0;
   };
   const getHasDone = (guid: string): 0 | 1 => {
-    if (htmlTags && officialGuidSet.has(guid)) return (htmlTags.get(guid) ?? []).includes("to-do:completed") ? 1 : 0;
+    if (htmlTags && officialGuidSet.has(guid)) return (htmlTags.get(guid)?.tags ?? []).includes("to-do:completed") ? 1 : 0;
     return binaryGuids.done.has(guid) ? 1 : 0;
   };
   // tags column: pipe-delimited tag list, e.g. "|star|to-do|" for LIKE '%|star|%' matching
   const getTagsStr = (guid: string): string | null => {
     const t = htmlTags?.get(guid);
-    if (!t || t.length === 0) return null;
-    return `|${t.join("|")}|`;
+    if (!t || t.tags.length === 0) return null;
+    return `|${t.tags.join("|")}|`;
+  };
+  // tag_lines column: JSON-encoded array of {tag, text} for display
+  const getTagLinesStr = (guid: string): string | null => {
+    const t = htmlTags?.get(guid);
+    if (!t || t.lines.length === 0) return null;
+    return JSON.stringify(t.lines);
   };
 
   db.transaction(() => {
@@ -763,7 +811,7 @@ function upsertSectionToIndex(
     db.run("DELETE FROM pages WHERE section=? AND notebook=?", [section, notebook]);
 
     const insert = db.prepare(
-      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo, has_done, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo, has_done, tags, tag_lines) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
 
     if (binBuf && anchors && anchors.length > 0) {
@@ -777,13 +825,12 @@ function upsertSectionToIndex(
         const body = cleanBodyForIndex((jsonBody + " " + binBody).slice(0, BINARY_BODY_LIMIT));
         const official = officialUrlByGuid.get(anchor.guid);
         const url = official?.url ?? buildPageUrl(webUrl, anchor.title, anchor.guid);
-        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid, getHasTodo(anchor.guid), getHasDone(anchor.guid), getTagsStr(anchor.guid));
+        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid, getHasTodo(anchor.guid), getHasDone(anchor.guid), getTagsStr(anchor.guid), getTagLinesStr(anchor.guid));
       }
     } else {
-      // JSON path: no binary available — tag columns stay NULL (unknown)
       for (const p of pages) {
         const url = p.officialUrl ?? buildPageUrl(webUrl, p.title, p.pageGuid);
-        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", null, null, null);
+        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", null, null, null, null);
       }
     }
 
@@ -829,21 +876,63 @@ export async function syncCache(
 
   let downloaded = 0;
   let skipped = 0;
+  let retagged = 0;
   const total = allSections.length;
   log(`${total} sections across ${notebooks.length} notebooks`);
 
+  // Query for sections that already have tag_lines populated (to skip retagging them)
+  const taggedSectionsStmt = db.prepare(
+    "SELECT COUNT(*) as c FROM pages WHERE section=? AND notebook=? AND tag_lines IS NOT NULL"
+  );
+  const hasTagLines = (section: string, notebook: string): boolean =>
+    ((taggedSectionsStmt.get(section, notebook) as { c: number } | null)?.c ?? 0) > 0;
+
   for (const { nb, sec, nbDir, cachePath } of allSections) {
       // Incremental sync: skip if cache is fresh AND source hasn't changed
+      let cacheIsFresh = false;
       try {
         const raw = await readFile(cachePath, "utf-8");
         const cached = JSON.parse(raw);
-        // If cache has a lastModified field, compare with OneDrive's lastModifiedDateTime
         if (cached.lastModified && sec.lastModified && cached.lastModified >= sec.lastModified) {
-          skipped++;
-          continue;
+          cacheIsFresh = true;
         }
-      } catch {
-        // No cache or unreadable — download
+      } catch {}
+
+      if (cacheIsFresh) {
+        // Still run a light-weight tag refresh if DB doesn't have tag_lines for this section
+        if (!hasTagLines(sec.name, nb.displayName)) {
+          const webUrl = await getSectionWebUrl(sec.drivePath);
+          const sourcedocMatch = webUrl.match(/sourcedoc=%7B([0-9a-f-]+)%7D/i);
+          const sectionGuid = sourcedocMatch?.[1]?.toLowerCase();
+          if (sectionGuid) {
+            const officialPages = await getOneNotePagesForSection(sectionGuid);
+            const pagesForHtml = officialPages
+              .map((p) => { const g = pageGuidFromWebUrl(p.webUrl); return g ? { guid: g, apiId: p.id } : null; })
+              .filter(Boolean) as { guid: string; apiId: string }[];
+            if (pagesForHtml.length > 0) {
+              log(`  [${retagged + downloaded + skipped + 1}/${total}] ${nb.displayName}/${sec.name} (retag only)`);
+              const htmlTags = await fetchTagsFromHtml(pagesForHtml, log);
+              if (htmlTags.size > 0) {
+                const updateStmt = db.prepare(
+                  "UPDATE pages SET tags=?, tag_lines=?, has_todo=?, has_done=? WHERE page_guid=? AND section=? AND notebook=?"
+                );
+                db.transaction(() => {
+                  for (const [guid, info] of htmlTags) {
+                    const tagsStr = `|${info.tags.join("|")}|`;
+                    const linesStr = info.lines.length > 0 ? JSON.stringify(info.lines) : null;
+                    const hasTodo = info.tags.includes("to-do") ? 1 : 0;
+                    const hasDone = info.tags.includes("to-do:completed") ? 1 : 0;
+                    updateStmt.run(tagsStr, linesStr, hasTodo, hasDone, guid, sec.name, nb.displayName);
+                  }
+                })();
+              }
+              retagged++;
+              continue;
+            }
+          }
+        }
+        skipped++;
+        continue;
       }
 
       const progress = `[${downloaded + skipped + 1}/${total}]`;
@@ -927,7 +1016,7 @@ export async function syncCache(
       log(`    [ok] ${sec.name} (${pages.length} pages)`);
   }
   db.close();
-  log(`Sync complete. ${downloaded} downloaded, ${skipped} up-to-date.`);
+  log(`Sync complete. ${downloaded} downloaded, ${retagged} retagged, ${skipped} up-to-date.`);
 }
 
 /**
@@ -1173,7 +1262,7 @@ export async function searchLocal(
   try {
     const db = new Database(SEARCH_DB_PATH, { readonly: true });
 
-    type Row = { section: string; notebook: string; title: string; body: string; web_url: string; page_guid: string };
+    type Row = { section: string; notebook: string; title: string; body: string; web_url: string; page_guid: string; tag_lines: string | null };
     let rows: Row[];
 
     // Build tag filter SQL: each tagFilter value needs tags LIKE '%|value|%'
@@ -1196,12 +1285,11 @@ export async function searchLocal(
       addTagConditions(conditions, params, "p.");
       params.push(limit, offset);
       rows = db.query<Row, (string | number | null)[]>(
-        `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid
+        `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid, p.tag_lines
          FROM pages_fts f JOIN pages p ON f.rowid = p.id
          WHERE ${conditions.join(" AND ")} ORDER BY rank LIMIT ? OFFSET ?`
       ).all(...params);
     } else {
-      // Tag-only query: scan pages table directly (no FTS)
       const conditions: string[] = [];
       const params: (string | number | null)[] = [];
       if (notebook) { conditions.push("notebook LIKE ?"); params.push(`%${notebook}%`); }
@@ -1210,19 +1298,24 @@ export async function searchLocal(
       const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
       params.push(limit, offset);
       rows = db.query<Row, (string | number | null)[]>(
-        `SELECT section, notebook, title, body, web_url, page_guid FROM pages ${where} ORDER BY id LIMIT ? OFFSET ?`
+        `SELECT section, notebook, title, body, web_url, page_guid, tag_lines FROM pages ${where} ORDER BY id LIMIT ? OFFSET ?`
       ).all(...params);
     }
 
     db.close();
-    return rows.map((r) => ({
-      title: r.title,
-      body: ftsQuery ? cleanSnippet(r.body, ftsQuery) : r.body?.split("\n")[0] ?? "",
-      section: r.section,
-      notebook: r.notebook,
-      webUrl: r.web_url,
-      pageGuid: r.page_guid,
-    }));
+    return rows.map((r) => {
+      let tagLines: Array<{ tag: string; text: string }> | undefined;
+      if (r.tag_lines) { try { tagLines = JSON.parse(r.tag_lines); } catch {} }
+      return {
+        title: r.title,
+        body: ftsQuery ? cleanSnippet(r.body, ftsQuery) : r.body?.split("\n")[0] ?? "",
+        section: r.section,
+        notebook: r.notebook,
+        webUrl: r.web_url,
+        pageGuid: r.page_guid,
+        tagLines,
+      };
+    });
   } catch {
     // DB not found or FTS error — fall back to file scan
   }

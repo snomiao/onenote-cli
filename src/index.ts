@@ -800,7 +800,16 @@ yargs(hideBin(process.argv))
         console.log(displayTitle);
         console.log(`  ${dim(r.section)} ${dim("|")} ${dim(r.notebook)}`);
 
-        // Show context around the match with highlighted keyword
+        // Show actual tagged lines if present (matching the filter)
+        const tagLines = r.tagLines ?? [];
+        const matchingLines = (() => {
+          if (hasTodo) return tagLines.filter((l) => l.tag === "to-do");
+          if (hasDone) return tagLines.filter((l) => l.tag === "to-do:completed");
+          if (hasCheckbox) return tagLines.filter((l) => l.tag === "to-do" || l.tag === "to-do:completed");
+          if (tagFilters.length > 0) return tagLines.filter((l) => tagFilters.includes(l.tag));
+          return [];
+        })();
+
         const body = cleanSnippet(r.body);
         const idx = lowerQuery ? body.toLowerCase().indexOf(lowerQuery) : -1;
         if (idx >= 0) {
@@ -811,6 +820,15 @@ yargs(hideBin(process.argv))
           const after = body.slice(idx + ftsQuery.length, end);
           const snippet = (start > 0 ? "..." : "") + before + yellow(bold(match)) + after + (end < body.length ? "..." : "");
           console.log(`  ${tagPrefix}${snippet}`);
+        } else if (matchingLines.length > 0) {
+          // Show each tagged line with its specific icon
+          for (const line of matchingLines.slice(0, 5)) {
+            const lineIcon = line.tag === "to-do" ? yellow(bold("☐")) :
+                             line.tag === "to-do:completed" ? green(bold("☑")) :
+                             bold(TAG_EMOJI[line.tag] ?? line.tag);
+            console.log(`  ${lineIcon} ${line.text}`);
+          }
+          if (matchingLines.length > 5) console.log(`  ${dim(`... and ${matchingLines.length - 5} more`)}`);
         } else {
           const snippet = body.length >= 20 ? body.slice(0, 120) : null;
           if (tagPrefix) {
