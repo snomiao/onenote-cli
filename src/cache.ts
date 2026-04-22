@@ -843,8 +843,11 @@ function upsertSectionToIndex(
   })();
 }
 
+export type SyncEmit = (ev: import("./sync-ui").SyncEvent) => void;
+
 export async function syncCache(
-  onProgress?: (msg: string) => void
+  onProgress?: (msg: string) => void,
+  emit?: SyncEmit
 ): Promise<void> {
   await ensureDir(CACHE_DIR);
   await ensureDir(join(PKG_ROOT, ".onenote"));
@@ -853,6 +856,7 @@ export async function syncCache(
 
   const notebooks = await listNotebooks();
   log(`Found ${notebooks.length} notebooks`);
+  emit?.({ type: "total", total: 0, notebooks: notebooks.length });
 
   // Collect all sections across notebooks for progress tracking.
   // Sync smaller sections first so quick wins land early and huge sections
@@ -879,6 +883,7 @@ export async function syncCache(
   let retagged = 0;
   const total = allSections.length;
   log(`${total} sections across ${notebooks.length} notebooks`);
+  emit?.({ type: "total", total, notebooks: notebooks.length });
 
   // Query for sections that already have tag_lines populated (to skip retagging them)
   const taggedSectionsStmt = db.prepare(
@@ -911,8 +916,10 @@ export async function syncCache(
               .filter(Boolean) as { guid: string; apiId: string }[];
             if (pagesForHtml.length > 0) {
               log(`  [${retagged + downloaded + skipped + 1}/${total}] ${nb.displayName}/${sec.name} (retag only)`);
+              emit?.({ type: "retag", index: retagged + downloaded + skipped + 1, notebook: nb.displayName, section: sec.name });
               const htmlTags = await fetchTagsFromHtml(pagesForHtml, log);
               if (htmlTags.size > 0) {
+                emit?.({ type: "tags", count: htmlTags.size });
                 const updateStmt = db.prepare(
                   "UPDATE pages SET tags=?, tag_lines=?, has_todo=?, has_done=? WHERE page_guid=? AND section=? AND notebook=?"
                 );
@@ -927,21 +934,25 @@ export async function syncCache(
                 })();
               }
               retagged++;
+              emit?.({ type: "done", notebook: nb.displayName, section: sec.name, pages: 0, status: "skipped" });
               continue;
             }
           }
         }
         skipped++;
+        emit?.({ type: "done", notebook: nb.displayName, section: sec.name, pages: 0, status: "skipped" });
         continue;
       }
 
-      const progress = `[${downloaded + skipped + 1}/${total}]`;
-      const sizeStr = sec.size ? ` (${prettyBytes(sec.size, { binary: true })})` : "";
-      log(`  ${progress} ${nb.displayName}/${sec.name}${sizeStr}`);
+      const idx = downloaded + skipped + retagged + 1;
+      const sizeStr = sec.size ? prettyBytes(sec.size, { binary: true }) : undefined;
+      log(`  [${idx}/${total}] ${nb.displayName}/${sec.name}${sizeStr ? ` (${sizeStr})` : ""}`);
+      emit?.({ type: "section", index: idx, notebook: nb.displayName, section: sec.name, size: sizeStr });
       const buf = await downloadSection(sec.drivePath);
       if (!buf) {
         log(`    [failed] ${sec.name}`);
         skipped++;
+        emit?.({ type: "done", notebook: nb.displayName, section: sec.name, pages: 0, status: "failed" });
         continue;
       }
       downloaded++;
@@ -1014,9 +1025,11 @@ export async function syncCache(
         htmlTags
       );
       log(`    [ok] ${sec.name} (${pages.length} pages)`);
+      emit?.({ type: "done", notebook: nb.displayName, section: sec.name, pages: pages.length, status: "ok" });
   }
   db.close();
   log(`Sync complete. ${downloaded} downloaded, ${retagged} retagged, ${skipped} up-to-date.`);
+  emit?.({ type: "complete", downloaded, retagged, skipped });
 }
 
 /**

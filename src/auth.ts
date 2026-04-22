@@ -124,39 +124,42 @@ export async function listAccounts(): Promise<AccountInfo[]> {
   return pca.getTokenCache().getAllAccounts() as Promise<AccountInfo[]>;
 }
 
-export async function getAccessToken(account?: AccountInfo): Promise<string> {
-  const pca = await createPca();
-
-  const accounts = await pca.getTokenCache().getAllAccounts();
-
-  // Resolve which account to use
-  let target: AccountInfo | undefined = account;
-  if (!target && accounts.length > 0) {
-    target = accounts[0] as AccountInfo;
-  }
-
-  if (target) {
-    try {
-      const result = await pca.acquireTokenSilent({
-        account: target as AccountInfo,
-        scopes: SCOPES,
-      });
-      return result.accessToken;
-    } catch {
-      // fall through to device code
-    }
-  }
-
-  // Device code flow (adds new account to cache without removing existing ones)
+async function deviceCodeFlow(pca: PublicClientApplication): Promise<AuthenticationResult> {
   const request: DeviceCodeRequest = {
     scopes: SCOPES,
     deviceCodeCallback: (response) => {
       console.error(response.message);
     },
   };
-
   const result = await pca.acquireTokenByDeviceCode(request);
   if (!result) throw new Error("Authentication failed");
+  return result;
+}
+
+/** Add a new account via device code flow. Always prompts — never silently reuses existing tokens. */
+export async function login(): Promise<string> {
+  const pca = await createPca();
+  const result = await deviceCodeFlow(pca);
+  return result.account?.username ?? "(unknown)";
+}
+
+/** Get an access token silently for the given account (or first cached account). */
+export async function getAccessToken(account?: AccountInfo): Promise<string> {
+  const pca = await createPca();
+  const accounts = await pca.getTokenCache().getAllAccounts() as AccountInfo[];
+
+  let target = account ?? accounts[0];
+  if (target) {
+    try {
+      const result = await pca.acquireTokenSilent({ account: target, scopes: SCOPES });
+      return result.accessToken;
+    } catch {
+      // silent failed — fall through to device code for this account
+    }
+  }
+
+  // No cached account or silent refresh failed
+  const result = await deviceCodeFlow(pca);
   return result.accessToken;
 }
 

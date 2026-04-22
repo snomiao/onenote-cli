@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as graph from "./graph";
-import { logout, logoutAll, whoami, listAccounts } from "./auth";
+import { login, logout, logoutAll, whoami, listAccounts } from "./auth";
 import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, SEARCH_DB_PATH, parseTagsFromQuery, TAG_ALIASES } from "./cache";
 import { stat } from "node:fs/promises";
 import { markdownToHtml } from "./markdown";
@@ -650,7 +650,8 @@ yargs(hideBin(process.argv))
     "Download and cache all OneNote sections for local search",
     () => {},
     async () => {
-      await syncCache();
+      const { runSyncUI } = await import("./sync-ui");
+      await runSyncUI((emit) => syncCache(() => {}, emit));
     }
   )
 
@@ -876,9 +877,8 @@ yargs(hideBin(process.argv))
           "Login to Microsoft account (device code flow). Run multiple times to add more accounts.",
           () => {},
           async () => {
-            const { getAccessToken } = await import("./auth");
-            await getAccessToken();
-            console.log("Login successful!");
+            const username = await login();
+            console.log(`Logged in as ${username}`);
           }
         )
         .command(
