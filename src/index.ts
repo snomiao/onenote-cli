@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as graph from "./graph";
-import { logout, whoami } from "./auth";
+import { logout, logoutAll, whoami, listAccounts } from "./auth";
 import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, SEARCH_DB_PATH, parseTagsFromQuery, TAG_ALIASES } from "./cache";
 import { stat } from "node:fs/promises";
 import { markdownToHtml } from "./markdown";
@@ -873,7 +873,7 @@ yargs(hideBin(process.argv))
       yargs
         .command(
           "login",
-          "Login to Microsoft account (device code flow)",
+          "Login to Microsoft account (device code flow). Run multiple times to add more accounts.",
           () => {},
           async () => {
             const { getAccessToken } = await import("./auth");
@@ -882,16 +882,37 @@ yargs(hideBin(process.argv))
           }
         )
         .command(
-          "logout",
-          "Clear cached authentication tokens",
+          "logout [email]",
+          "Logout an account. With no args: logout if only one account, else show list. Use --all to logout all.",
+          (y) => y
+            .positional("email", { type: "string", describe: "Account email to logout" })
+            .option("all", { type: "boolean", describe: "Logout all accounts" }),
+          async (argv) => {
+            if (argv.all) {
+              await logoutAll();
+            } else {
+              await logout(argv.email as string | undefined);
+            }
+          }
+        )
+        .command(
+          "list",
+          "List all logged-in accounts",
           () => {},
           async () => {
-            await logout();
+            const accounts = await listAccounts();
+            if (accounts.length === 0) {
+              console.log("No accounts logged in. Run `onenote auth login` to authenticate.");
+              return;
+            }
+            for (const a of accounts) {
+              console.log(`${a.username}  (${a.name ?? ""})`);
+            }
           }
         )
         .command(
           "whoami",
-          "Show current authenticated user",
+          "Show all authenticated accounts",
           () => {},
           async () => {
             await whoami();

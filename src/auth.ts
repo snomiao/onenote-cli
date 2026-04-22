@@ -23,11 +23,9 @@ function autoLoadEnv() {
         if (!m) continue;
         const key = m[1];
         let val = m[2];
-        // Strip optional surrounding quotes
         if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
           val = val.slice(1, -1);
         }
-        // Don't override env vars set by the shell
         if (process.env[key] === undefined) process.env[key] = val;
       }
     } catch {}
@@ -60,7 +58,6 @@ async function ensureDir(path: string) {
 }
 
 async function loadConfig(): Promise<AppConfig> {
-  // Env vars take priority over config file
   const envClientId = process.env.ONENOTE_CLIENT_ID;
   const envAuthority = process.env.ONENOTE_AUTHORITY;
   if (envClientId && envClientId !== "YOUR_CLIENT_ID") {
@@ -122,15 +119,26 @@ async function createPca(): Promise<PublicClientApplication> {
   return pca;
 }
 
-export async function getAccessToken(): Promise<string> {
+export async function listAccounts(): Promise<AccountInfo[]> {
+  const pca = await createPca();
+  return pca.getTokenCache().getAllAccounts() as Promise<AccountInfo[]>;
+}
+
+export async function getAccessToken(account?: AccountInfo): Promise<string> {
   const pca = await createPca();
 
-  // Try silent auth first
   const accounts = await pca.getTokenCache().getAllAccounts();
-  if (accounts.length > 0) {
+
+  // Resolve which account to use
+  let target: AccountInfo | undefined = account;
+  if (!target && accounts.length > 0) {
+    target = accounts[0] as AccountInfo;
+  }
+
+  if (target) {
     try {
       const result = await pca.acquireTokenSilent({
-        account: accounts[0] as AccountInfo,
+        account: target as AccountInfo,
         scopes: SCOPES,
       });
       return result.accessToken;
@@ -139,7 +147,7 @@ export async function getAccessToken(): Promise<string> {
     }
   }
 
-  // Device code flow
+  // Device code flow (adds new account to cache without removing existing ones)
   const request: DeviceCodeRequest = {
     scopes: SCOPES,
     deviceCodeCallback: (response) => {
@@ -148,17 +156,49 @@ export async function getAccessToken(): Promise<string> {
   };
 
   const result = await pca.acquireTokenByDeviceCode(request);
-  if (!result) {
-    throw new Error("Authentication failed");
-  }
+  if (!result) throw new Error("Authentication failed");
   return result.accessToken;
 }
 
-export async function logout(): Promise<void> {
+export async function logout(email?: string): Promise<void> {
+  const pca = await createPca();
+  const accounts = await pca.getTokenCache().getAllAccounts() as AccountInfo[];
+
+  // Option C: 1 account → logout that one; multiple + no email → show list
+  if (!email) {
+    if (accounts.length === 0) {
+      console.log("Already logged out (no cached tokens).");
+      return;
+    }
+    if (accounts.length === 1) {
+      email = accounts[0].username;
+    } else {
+      console.log("Multiple accounts found. Specify one or use --all:");
+      for (const a of accounts) {
+        console.log(`  ${a.username}`);
+      }
+      console.log("\nExample: onenote auth logout snomiao@snomiao.com");
+      console.log("         onenote auth logout --all");
+      return;
+    }
+  }
+
+  const target = accounts.find((a) => a.username?.toLowerCase() === email!.toLowerCase());
+  if (!target) {
+    console.log(`Account '${email}' not found. Logged-in accounts:`);
+    for (const a of accounts) console.log(`  ${a.username}`);
+    return;
+  }
+
+  await pca.getTokenCache().removeAccount(target);
+  console.log(`Logged out ${target.username}.`);
+}
+
+export async function logoutAll(): Promise<void> {
   try {
     const { unlink } = await import("node:fs/promises");
     await unlink(CACHE_PATH);
-    console.log("Logged out successfully. Token cache removed.");
+    console.log("Logged out all accounts. Token cache removed.");
   } catch {
     console.log("Already logged out (no cached tokens).");
   }
@@ -166,14 +206,13 @@ export async function logout(): Promise<void> {
 
 export async function whoami(): Promise<void> {
   const pca = await createPca();
-  const accounts = await pca.getTokenCache().getAllAccounts();
+  const accounts = await pca.getTokenCache().getAllAccounts() as AccountInfo[];
   if (accounts.length === 0) {
     console.log("Not logged in. Run `onenote auth login` to authenticate.");
     return;
   }
-  const account = accounts[0] as AccountInfo;
-  console.log("Username:", account.username || "(unknown)");
-  console.log("Name:", account.name || "(unknown)");
-  console.log("Tenant:", account.tenantId || "(unknown)");
-  console.log("Environment:", account.environment || "(unknown)");
+  for (const account of accounts) {
+    console.log(`${account.username}  (${account.name ?? ""})`);
+    console.log(`  tenant: ${account.tenantId ?? "unknown"}  env: ${account.environment ?? "unknown"}`);
+  }
 }
