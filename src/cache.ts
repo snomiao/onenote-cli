@@ -1,5 +1,5 @@
 import prettyBytes from "pretty-bytes";
-import { getAccessToken } from "./auth";
+import { getAccessToken, listAccounts, setCurrentAccount } from "./auth";
 import { listNotebooks } from "./graph";
 import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -520,7 +520,8 @@ function openSearchDb(): Database {
       has_todo INTEGER DEFAULT NULL,
       has_done INTEGER DEFAULT NULL,
       tags TEXT DEFAULT NULL,
-      tag_lines TEXT DEFAULT NULL
+      tag_lines TEXT DEFAULT NULL,
+      account TEXT DEFAULT NULL
     )
   `);
   // Migrate existing DBs that lack these columns
@@ -528,6 +529,7 @@ function openSearchDb(): Database {
   try { db.run("ALTER TABLE pages ADD COLUMN has_done INTEGER DEFAULT NULL"); } catch {}
   try { db.run("ALTER TABLE pages ADD COLUMN tags TEXT DEFAULT NULL"); } catch {}
   try { db.run("ALTER TABLE pages ADD COLUMN tag_lines TEXT DEFAULT NULL"); } catch {}
+  try { db.run("ALTER TABLE pages ADD COLUMN account TEXT DEFAULT NULL"); } catch {}
   db.run("CREATE INDEX IF NOT EXISTS pages_section ON pages(section, notebook)");
   db.run(`
     CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
@@ -765,7 +767,8 @@ function upsertSectionToIndex(
   binBuf?: Buffer,
   anchors?: Array<{ offset: number; guid: string; title: string }>,
   officialPages?: Array<{ guid: string | null; title: string; webUrl?: string; apiId?: string }>,
-  htmlTags?: Map<string, PageTagInfo>
+  htmlTags?: Map<string, PageTagInfo>,
+  accountEmail?: string
 ): void {
   // Build lookup maps
   const officialUrlByGuid = new Map<string, { url: string; title: string }>();
@@ -811,7 +814,7 @@ function upsertSectionToIndex(
     db.run("DELETE FROM pages WHERE section=? AND notebook=?", [section, notebook]);
 
     const insert = db.prepare(
-      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo, has_done, tags, tag_lines) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo, has_done, tags, tag_lines, account) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
 
     if (binBuf && anchors && anchors.length > 0) {
@@ -825,12 +828,12 @@ function upsertSectionToIndex(
         const body = cleanBodyForIndex((jsonBody + " " + binBody).slice(0, BINARY_BODY_LIMIT));
         const official = officialUrlByGuid.get(anchor.guid);
         const url = official?.url ?? buildPageUrl(webUrl, anchor.title, anchor.guid);
-        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid, getHasTodo(anchor.guid), getHasDone(anchor.guid), getTagsStr(anchor.guid), getTagLinesStr(anchor.guid));
+        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid, getHasTodo(anchor.guid), getHasDone(anchor.guid), getTagsStr(anchor.guid), getTagLinesStr(anchor.guid), accountEmail ?? null);
       }
     } else {
       for (const p of pages) {
         const url = p.officialUrl ?? buildPageUrl(webUrl, p.title, p.pageGuid);
-        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", null, null, null, null);
+        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", null, null, null, null, accountEmail ?? null);
       }
     }
 
@@ -845,14 +848,89 @@ function upsertSectionToIndex(
 
 export type SyncEmit = (ev: import("./sync-ui").SyncEvent) => void;
 
+/** Sanitize email for filesystem path usage (replace @ and any other unsafe chars). */
+function accountDirName(email: string): string {
+  return email.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+/** Move legacy .onenote/cache/<notebook>/ entries into .onenote/cache/<account>/<notebook>/ on first multi-account sync. */
+async function migrateLegacyCacheToAccount(accountEmail: string, log: (msg: string) => void): Promise<void> {
+  const { rename } = await import("node:fs/promises");
+  const accountDir = join(CACHE_DIR, accountDirName(accountEmail));
+  let entries: string[];
+  try { entries = await readdir(CACHE_DIR); } catch { return; }
+  const legacy = entries.filter((e) => !e.startsWith(".") && e !== accountDirName(accountEmail));
+  if (legacy.length === 0) return;
+
+  // Only migrate entries that look like notebook dirs (contain .json or .one files)
+  const toMove: string[] = [];
+  for (const name of legacy) {
+    const p = join(CACHE_DIR, name);
+    try {
+      const s = await stat(p);
+      if (!s.isDirectory()) continue;
+      const files = await readdir(p);
+      if (files.some((f) => f.endsWith(".json") || f.endsWith(".one"))) {
+        // Skip if this dir itself looks like an account dir (contains subdirs that look like notebooks)
+        const hasSubdirs = await Promise.all(files.map(async (f) => {
+          try { return (await stat(join(p, f))).isDirectory(); } catch { return false; }
+        }));
+        if (hasSubdirs.some((x) => x)) continue; // already account-style
+        toMove.push(name);
+      }
+    } catch {}
+  }
+  if (toMove.length === 0) return;
+
+  log(`Migrating ${toMove.length} legacy notebook cache dir(s) to ${accountEmail}/...`);
+  await ensureDir(accountDir);
+  for (const name of toMove) {
+    try { await rename(join(CACHE_DIR, name), join(accountDir, name)); } catch {}
+  }
+}
+
 export async function syncCache(
   onProgress?: (msg: string) => void,
   emit?: SyncEmit
 ): Promise<void> {
   await ensureDir(CACHE_DIR);
   await ensureDir(join(PKG_ROOT, ".onenote"));
-  const db = openSearchDb();
   const log = onProgress ?? console.log;
+
+  const accounts = await listAccounts();
+  if (accounts.length === 0) {
+    log("No accounts logged in. Run `onenote auth login` first.");
+    return;
+  }
+
+  // One-time migration: move legacy caches (.onenote/cache/<nb>/) into the first account's namespace
+  await migrateLegacyCacheToAccount(accounts[0]!.username, log);
+
+  log(`Syncing ${accounts.length} account${accounts.length > 1 ? "s" : ""}: ${accounts.map((a) => a.username).join(", ")}`);
+
+  let idx = 0;
+  for (const account of accounts) {
+    idx++;
+    setCurrentAccount(account);
+    emit?.({ type: "account", email: account.username, index: idx, total: accounts.length });
+    log(`\n=== ${account.username} ===`);
+    try {
+      await syncAccountCache(account.username, log, emit);
+    } catch (err) {
+      log(`  [error] ${account.username}: ${(err as Error).message}`);
+    }
+  }
+  setCurrentAccount(undefined);
+}
+
+async function syncAccountCache(
+  accountEmail: string,
+  log: (msg: string) => void,
+  emit?: SyncEmit
+): Promise<void> {
+  const accountCacheDir = join(CACHE_DIR, accountDirName(accountEmail));
+  await ensureDir(accountCacheDir);
+  const db = openSearchDb();
 
   const notebooks = await listNotebooks();
   log(`Found ${notebooks.length} notebooks`);
@@ -863,7 +941,7 @@ export async function syncCache(
   // don't block progress.
   const sectionsByNotebook = await Promise.all(
     notebooks.map(async (nb) => {
-      const nbDir = join(CACHE_DIR, nb.displayName);
+      const nbDir = join(accountCacheDir, nb.displayName);
       await ensureDir(nbDir);
       const sections = await listSectionFiles(nb);
       return sections.map((sec) => ({
@@ -921,7 +999,7 @@ export async function syncCache(
               if (htmlTags.size > 0) {
                 emit?.({ type: "tags", count: htmlTags.size });
                 const updateStmt = db.prepare(
-                  "UPDATE pages SET tags=?, tag_lines=?, has_todo=?, has_done=? WHERE page_guid=? AND section=? AND notebook=?"
+                  "UPDATE pages SET tags=?, tag_lines=?, has_todo=?, has_done=?, account=COALESCE(account, ?) WHERE page_guid=? AND section=? AND notebook=?"
                 );
                 db.transaction(() => {
                   for (const [guid, info] of htmlTags) {
@@ -929,7 +1007,7 @@ export async function syncCache(
                     const linesStr = info.lines.length > 0 ? JSON.stringify(info.lines) : null;
                     const hasTodo = info.tags.includes("to-do") ? 1 : 0;
                     const hasDone = info.tags.includes("to-do:completed") ? 1 : 0;
-                    updateStmt.run(tagsStr, linesStr, hasTodo, hasDone, guid, sec.name, nb.displayName);
+                    updateStmt.run(tagsStr, linesStr, hasTodo, hasDone, accountEmail, guid, sec.name, nb.displayName);
                   }
                 })();
               }
@@ -1022,7 +1100,8 @@ export async function syncCache(
         buf, // always pass buf to FTS (even >50MB sections); only disk save is gated on includeRaw
         cacheData.anchors,
         cacheData.officialPages,
-        htmlTags
+        htmlTags,
+        accountEmail
       );
       log(`    [ok] ${sec.name} (${pages.length} pages)`);
       emit?.({ type: "done", notebook: nb.displayName, section: sec.name, pages: pages.length, status: "ok" });
