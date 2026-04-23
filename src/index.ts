@@ -877,8 +877,14 @@ yargs(hideBin(process.argv))
           "Login to Microsoft account (device code flow). Run multiple times to add more accounts.",
           () => {},
           async () => {
+            const existing = await listAccounts();
+            if (existing.length > 0) {
+              console.log(`Already logged in (${existing.length} account${existing.length > 1 ? "s" : ""}):`);
+              for (const a of existing) console.log(`  - ${a.username}`);
+              console.log("Adding another account...\n");
+            }
             const username = await login();
-            console.log(`Logged in as ${username}`);
+            console.log(`\nLogged in as ${username}`);
           }
         )
         .command(
