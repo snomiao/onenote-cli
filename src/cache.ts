@@ -450,27 +450,45 @@ function pageGuidFromWebUrl(webUrl: string): string | null {
 
 async function listSectionFiles(
   notebook: any
-): Promise<{ name: string; drivePath: string; lastModified: string; size: number }[]> {
+): Promise<{ name: string; drivePath: string; lastModified: string; size: number; apiOnly?: boolean; sectionId?: string }[]> {
   const nbPath = getNotebookDrivePath(notebook);
-  if (!nbPath) return [];
-  const encoded = nbPath
-    .split("/")
-    .map((s) => encodeURIComponent(s))
-    .join("/");
+  if (nbPath) {
+    const encoded = nbPath.split("/").map((s) => encodeURIComponent(s)).join("/");
+    try {
+      const res = await graphFetchRaw(
+        `/me/drive/root:/${encoded}:/children?$select=name,id,file,size,lastModifiedDateTime&$top=200`
+      );
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        const files = (data.value ?? [])
+          .filter((f: any) => f.name?.endsWith(".one"))
+          .map((f: any) => ({
+            name: f.name.replace(/\.one$/, ""),
+            drivePath: `${nbPath}/${f.name}`,
+            lastModified: f.lastModifiedDateTime ?? "",
+            size: f.size ?? 0,
+          }));
+        if (files.length > 0) return files;
+      }
+    } catch {}
+  }
+
+  // Fallback: personal OneDrive / unresolvable path → use OneNote API to list sections.
+  // These sections are synced HTML-only (no .one binary download).
   try {
     const res = await graphFetchRaw(
-      `/me/drive/root:/${encoded}:/children?$select=name,id,file,size,lastModifiedDateTime&$top=200`
+      `/me/onenote/notebooks/${notebook.id}/sections?$select=id,displayName,lastModifiedDateTime&$top=100`
     );
     if (!res.ok) return [];
     const data = (await res.json()) as any;
-    return (data.value ?? [])
-      .filter((f: any) => f.name?.endsWith(".one"))
-      .map((f: any) => ({
-        name: f.name.replace(/\.one$/, ""),
-        drivePath: `${nbPath}/${f.name}`,
-        lastModified: f.lastModifiedDateTime ?? "",
-        size: f.size ?? 0,
-      }));
+    return (data.value ?? []).map((s: any) => ({
+      name: s.displayName ?? "unnamed",
+      drivePath: "",
+      lastModified: s.lastModifiedDateTime ?? "",
+      size: 0,
+      apiOnly: true,
+      sectionId: s.id,
+    }));
   } catch {
     return [];
   }
@@ -923,6 +941,76 @@ export async function syncCache(
   setCurrentAccount(undefined);
 }
 
+/** HTML-only sync for personal OneDrive accounts (no .one binary access).
+ *  Lists pages via OneNote API, fetches each page's HTML, stores tags + text in DB. */
+async function syncApiOnlySection(
+  db: Database,
+  notebookName: string,
+  sectionName: string,
+  sectionId: string,
+  accountEmail: string,
+  log: (msg: string) => void,
+  emit?: SyncEmit
+): Promise<number> {
+  const pagesForHtml: { guid: string; apiId: string; title: string; webUrl: string }[] = [];
+  let url: string | null = `/me/onenote/sections/${sectionId}/pages?$select=id,title,links&$top=100`;
+  while (url) {
+    const res = await graphFetchRaw(url);
+    if (!res.ok) break;
+    const data = (await res.json()) as any;
+    for (const p of data.value ?? []) {
+      const webUrl = p.links?.oneNoteWebUrl?.href ?? "";
+      const guid = pageGuidFromWebUrl(webUrl) ?? p.id;
+      pagesForHtml.push({ guid, apiId: p.id, title: p.title ?? "", webUrl });
+    }
+    url = data["@odata.nextLink"] ?? null;
+  }
+  if (pagesForHtml.length === 0) return 0;
+
+  emit?.({ type: "tags", count: 0 });
+  const htmlTags = await fetchTagsFromHtml(
+    pagesForHtml.map((p) => ({ guid: p.guid, apiId: p.apiId })),
+    log
+  );
+
+  // Also fetch HTML body text for search (separate pass to reuse fetchTagsFromHtml would double fetch; do combined)
+  // Simpler: refetch HTML for the page body. But that doubles requests. Instead, extend fetchTagsFromHtml
+  // to return bodies too. For now keep it simple — we already have tag_lines which contain the tagged text.
+  db.transaction(() => {
+    const insert = db.prepare(
+      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo, has_done, tags, tag_lines, account) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
+    );
+    // Delete existing entries for this section first
+    db.run(
+      `INSERT INTO pages_fts(pages_fts, rowid, title, body)
+       SELECT 'delete', id, title, body FROM pages WHERE section=? AND notebook=? AND account=?`,
+      [sectionName, notebookName, accountEmail]
+    );
+    db.run("DELETE FROM pages WHERE section=? AND notebook=? AND account=?", [sectionName, notebookName, accountEmail]);
+
+    for (const p of pagesForHtml) {
+      const info = htmlTags.get(p.guid);
+      const tags = info?.tags ?? [];
+      const lines = info?.lines ?? [];
+      const tagsStr = tags.length > 0 ? `|${tags.join("|")}|` : null;
+      const linesStr = lines.length > 0 ? JSON.stringify(lines) : null;
+      const hasTodo = tags.includes("to-do") ? 1 : 0;
+      const hasDone = tags.includes("to-do:completed") ? 1 : 0;
+      // Body = concatenation of tag line texts (used for search when no binary body available)
+      const body = lines.map((l) => l.text).join(" ").slice(0, 5000);
+      insert.run(sectionName, notebookName, p.title, body, p.webUrl, p.guid, hasTodo, hasDone, tagsStr, linesStr, accountEmail);
+    }
+    // Rebuild FTS entries
+    db.run(
+      `INSERT INTO pages_fts(rowid, title, body)
+       SELECT id, title, body FROM pages WHERE section=? AND notebook=? AND account=?`,
+      [sectionName, notebookName, accountEmail]
+    );
+  })();
+
+  return pagesForHtml.length;
+}
+
 async function syncAccountCache(
   accountEmail: string,
   log: (msg: string) => void,
@@ -971,6 +1059,25 @@ async function syncAccountCache(
     ((taggedSectionsStmt.get(section, notebook) as { c: number } | null)?.c ?? 0) > 0;
 
   for (const { nb, sec, nbDir, cachePath } of allSections) {
+      // Personal account / API-only sections: HTML-only sync (no binary download)
+      if (sec.apiOnly && sec.sectionId) {
+        const idx = downloaded + skipped + retagged + 1;
+        log(`  [${idx}/${total}] ${nb.displayName}/${sec.name} (api-only)`);
+        emit?.({ type: "section", index: idx, notebook: nb.displayName, section: sec.name });
+        try {
+          const pageCount = await syncApiOnlySection(
+            db, nb.displayName, sec.name, sec.sectionId, accountEmail, log, emit
+          );
+          emit?.({ type: "done", notebook: nb.displayName, section: sec.name, pages: pageCount, status: "ok" });
+          downloaded++;
+        } catch (err) {
+          log(`    [failed] ${sec.name}: ${(err as Error).message}`);
+          emit?.({ type: "done", notebook: nb.displayName, section: sec.name, pages: 0, status: "failed" });
+          skipped++;
+        }
+        continue;
+      }
+
       // Incremental sync: skip if cache is fresh AND source hasn't changed
       let cacheIsFresh = false;
       try {
