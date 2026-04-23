@@ -127,6 +127,7 @@ export async function listAccounts(): Promise<AccountInfo[]> {
 async function deviceCodeFlow(pca: PublicClientApplication): Promise<AuthenticationResult> {
   const request: DeviceCodeRequest = {
     scopes: SCOPES,
+    extraQueryParameters: { prompt: "select_account" },
     deviceCodeCallback: (response) => {
       console.error(response.message);
     },
