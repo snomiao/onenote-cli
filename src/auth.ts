@@ -124,6 +124,13 @@ export async function listAccounts(): Promise<AccountInfo[]> {
   return pca.getTokenCache().getAllAccounts() as Promise<AccountInfo[]>;
 }
 
+// Module-level "current" account used by getAccessToken when no account is passed.
+// syncCache sets this to loop over each cached account.
+let currentAccount: AccountInfo | undefined;
+export function setCurrentAccount(account: AccountInfo | undefined): void {
+  currentAccount = account;
+}
+
 async function deviceCodeFlow(pca: PublicClientApplication): Promise<AuthenticationResult> {
   const request: DeviceCodeRequest = {
     scopes: SCOPES,
@@ -200,12 +207,19 @@ export async function login(): Promise<string> {
   return result.account?.username ?? "(unknown)";
 }
 
-/** Get an access token silently for the given account (or first cached account). */
+/** Get an access token silently for the given account (or module-level currentAccount, or first cached account). */
 export async function getAccessToken(account?: AccountInfo): Promise<string> {
   const pca = await createPca();
   const accounts = await pca.getTokenCache().getAllAccounts() as AccountInfo[];
 
-  let target = account ?? accounts[0];
+  // Resolve: explicit > module-level current > match by homeAccountId > first
+  let target = account ?? currentAccount;
+  if (target) {
+    // Re-fetch from the shared cache to ensure we have the latest state
+    target = accounts.find((a) => a.homeAccountId === target!.homeAccountId) ?? target;
+  } else {
+    target = accounts[0];
+  }
   if (target) {
     try {
       const result = await pca.acquireTokenSilent({ account: target, scopes: SCOPES });

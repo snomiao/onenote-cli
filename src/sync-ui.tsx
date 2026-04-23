@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Box, Text, useApp } from "ink";
 
 export type SyncEvent =
+  | { type: "account"; email: string; index: number; total: number }
   | { type: "total"; total: number; notebooks: number }
   | { type: "section"; index: number; notebook: string; section: string; size?: string }
   | { type: "retag"; index: number; notebook: string; section: string }
@@ -16,6 +17,7 @@ interface State {
   downloaded: number;
   retagged: number;
   skipped: number;
+  account: { email: string; index: number; total: number } | null;
   current: { notebook: string; section: string; size?: string; retag?: boolean } | null;
   log: string[];
   complete: boolean;
@@ -39,7 +41,7 @@ function SyncUI({ events }: { events: AsyncIterable<SyncEvent> }) {
   const { exit } = useApp();
   const [state, setState] = useState<State>({
     total: 0, notebooks: 0, done: 0, downloaded: 0, retagged: 0, skipped: 0,
-    current: null, log: [], complete: false, startMs: Date.now(),
+    account: null, current: null, log: [], complete: false, startMs: Date.now(),
   });
 
   useEffect(() => {
@@ -47,6 +49,8 @@ function SyncUI({ events }: { events: AsyncIterable<SyncEvent> }) {
       for await (const ev of events) {
         setState((s) => {
           switch (ev.type) {
+            case "account":
+              return { ...s, account: { email: ev.email, index: ev.index, total: ev.total }, total: 0, done: 0 };
             case "total":
               return { ...s, total: ev.total, notebooks: ev.notebooks };
             case "section":
@@ -89,6 +93,13 @@ function SyncUI({ events }: { events: AsyncIterable<SyncEvent> }) {
 
   return (
     <Box flexDirection="column" paddingTop={1}>
+      {/* Account */}
+      {state.account && (
+        <Box>
+          <Text bold color="magenta">Account [{state.account.index}/{state.account.total}]: </Text>
+          <Text>{state.account.email}</Text>
+        </Box>
+      )}
       {/* Header */}
       <Box>
         <Text bold color="cyan">Syncing OneNote  </Text>
@@ -153,6 +164,7 @@ export async function runSyncUI(
   // Fall back to plain text if not a TTY
   if (!process.stdout.isTTY) {
     const emit = (ev: SyncEvent) => {
+      if (ev.type === "account") process.stdout.write(`\n=== [${ev.index}/${ev.total}] ${ev.email} ===\n`);
       if (ev.type === "total") process.stdout.write(`${ev.total} sections across ${ev.notebooks} notebooks\n`);
       if (ev.type === "section") process.stdout.write(`  [${ev.index}] ${ev.notebook}/${ev.section}${ev.size ? ` (${ev.size})` : ""}\n`);
       if (ev.type === "retag") process.stdout.write(`  [${ev.index}] ${ev.notebook}/${ev.section} (retag only)\n`);
