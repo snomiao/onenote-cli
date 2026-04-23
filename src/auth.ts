@@ -127,7 +127,6 @@ export async function listAccounts(): Promise<AccountInfo[]> {
 async function deviceCodeFlow(pca: PublicClientApplication): Promise<AuthenticationResult> {
   const request: DeviceCodeRequest = {
     scopes: SCOPES,
-    extraQueryParameters: { prompt: "select_account" },
     deviceCodeCallback: (response) => {
       console.error(response.message);
     },
@@ -137,10 +136,32 @@ async function deviceCodeFlow(pca: PublicClientApplication): Promise<Authenticat
   return result;
 }
 
-/** Add a new account via device code flow. Always prompts — never silently reuses existing tokens. */
+/** Add a new account via device code flow. Always prompts — never silently reuses existing tokens.
+ *  Uses a cache-free PCA so MSAL cannot silently consume the device code with an existing session. */
 export async function login(): Promise<string> {
-  const pca = await createPca();
-  const result = await deviceCodeFlow(pca);
+  const config = await loadConfig();
+  if (config.clientId === "YOUR_CLIENT_ID") {
+    console.error(`Please configure your Azure AD app credentials in:\n  ${CONFIG_PATH}`);
+    process.exit(1);
+  }
+  // No cachePlugin: prevents MSAL from silently using an existing cached token
+  const freshPca = new PublicClientApplication({
+    auth: { clientId: config.clientId, authority: config.authority },
+  });
+  const result = await deviceCodeFlow(freshPca);
+
+  // Merge new account's tokens into the shared on-disk cache
+  const newTokens = JSON.parse(freshPca.getTokenCache().serialize()) as Record<string, Record<string, unknown>>;
+  let existing: Record<string, Record<string, unknown>> = {};
+  try {
+    existing = JSON.parse(await readFile(CACHE_PATH, "utf-8"));
+  } catch {}
+  const merged = { ...existing };
+  for (const [section, entries] of Object.entries(newTokens)) {
+    merged[section] = { ...merged[section], ...entries };
+  }
+  await ensureDir(CACHE_PATH);
+  await writeFile(CACHE_PATH, JSON.stringify(merged));
   return result.account?.username ?? "(unknown)";
 }
 
