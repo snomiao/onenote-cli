@@ -127,8 +127,14 @@ export async function listAccounts(): Promise<AccountInfo[]> {
 async function deviceCodeFlow(pca: PublicClientApplication): Promise<AuthenticationResult> {
   const request: DeviceCodeRequest = {
     scopes: SCOPES,
-    deviceCodeCallback: (response) => {
+    deviceCodeCallback: async (response) => {
       console.error(response.message);
+      // Auto-copy code to clipboard for convenience
+      try {
+        const clipboardy = await import("clipboardy");
+        await clipboardy.default.write(response.userCode);
+        console.error(`(Code "${response.userCode}" copied to clipboard)`);
+      } catch {}
     },
   };
   const result = await pca.acquireTokenByDeviceCode(request);
