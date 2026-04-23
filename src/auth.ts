@@ -142,19 +142,48 @@ async function deviceCodeFlow(pca: PublicClientApplication): Promise<Authenticat
   return result;
 }
 
-/** Add a new account via device code flow. Always prompts — never silently reuses existing tokens.
- *  Uses a cache-free PCA so MSAL cannot silently consume the device code with an existing session. */
+/**
+ * Interactive auth via loopback redirect. Opens a local server on a free port,
+ * then opens the system browser to the Microsoft sign-in URL with redirect_uri=http://localhost:PORT.
+ * After the user authenticates, Microsoft redirects back with an auth code, which is
+ * exchanged for a token (PKCE). No device code, no browser-session conflicts.
+ */
+async function interactiveFlow(pca: PublicClientApplication): Promise<AuthenticationResult> {
+  const openBrowser = async (url: string) => {
+    const platform = process.platform;
+    const cmd = platform === "darwin" ? "open" : platform === "win32" ? "start" : "xdg-open";
+    const { spawn } = await import("node:child_process");
+    spawn(cmd, [url], { stdio: "ignore", detached: true }).unref();
+    console.error(`\nIf your browser didn't open, visit:\n  ${url}\n`);
+  };
+  const result = await pca.acquireTokenInteractive({
+    scopes: SCOPES,
+    openBrowser,
+    successTemplate:
+      "<html><body style='font-family:system-ui;padding:40px;text-align:center'>" +
+      "<h2>Signed in successfully</h2>" +
+      "<p>You can close this tab and return to the terminal.</p></body></html>",
+    errorTemplate:
+      "<html><body style='font-family:system-ui;padding:40px;text-align:center'>" +
+      "<h2>Sign-in failed</h2><p>Please return to the terminal and try again.</p></body></html>",
+  });
+  if (!result) throw new Error("Authentication failed");
+  return result;
+}
+
+/** Add a new account via interactive browser auth. */
 export async function login(): Promise<string> {
   const config = await loadConfig();
   if (config.clientId === "YOUR_CLIENT_ID") {
     console.error(`Please configure your Azure AD app credentials in:\n  ${CONFIG_PATH}`);
     process.exit(1);
   }
-  // No cachePlugin: prevents MSAL from silently using an existing cached token
+  // No cachePlugin: prevents silent reuse of an existing cached token
   const freshPca = new PublicClientApplication({
     auth: { clientId: config.clientId, authority: config.authority },
   });
-  const result = await deviceCodeFlow(freshPca);
+  console.error("Opening browser for sign-in...");
+  const result = await interactiveFlow(freshPca);
 
   // Merge new account's tokens into the shared on-disk cache
   const newTokens = JSON.parse(freshPca.getTokenCache().serialize()) as Record<string, Record<string, unknown>>;
