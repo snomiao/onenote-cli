@@ -677,6 +677,8 @@ yargs(hideBin(process.argv))
         .option("section", { type: "string", alias: "s", describe: "Limit to a section name" })
         .option("limit", { type: "number", alias: "l", default: 100, describe: "Max results per page" })
         .option("offset", { type: "number", alias: "p", default: 0, describe: "Skip first N results (for pagination)" })
+        .option("account", { type: "string", alias: "a", describe: "Limit to a specific account email (e.g. snomiao@gmail.com)" })
+        .option("group", { type: "boolean", alias: "g", describe: "Group results hierarchically by account > notebook > section" })
         .epilog(
           [
             "Query syntax:",
@@ -742,7 +744,9 @@ yargs(hideBin(process.argv))
       const offset = argv.offset as number;
       const nbFilter = normalizeRef(argv.notebook as string | undefined);
       const secFilter = normalizeRef(argv.section as string | undefined);
-      const results = await searchLocal(query, { offset, limit, notebook: nbFilter, section: secFilter });
+      const accountFilter = normalizeRef(argv.account as string | undefined);
+      const groupMode = argv.group as boolean | undefined;
+      const results = await searchLocal(query, { offset, limit, notebook: nbFilter, section: secFilter, account: accountFilter });
       if (results.length === 0) {
         console.log("No results found.");
         return;
@@ -790,18 +794,14 @@ yargs(hideBin(process.argv))
       })();
 
       const lowerQuery = ftsQuery.toLowerCase();
-      for (const r of results) {
-        // Skip results with garbage/attachment titles
-        if (/^\.[a-z0-9]{2,5}$/i.test(r.title.trim())) continue;
+      const cleanResults = results.filter((r) => {
+        if (/^\.[a-z0-9]{2,5}$/i.test(r.title.trim())) return false;
         const printable = r.title.replace(/[^\x20-\x7E\u3000-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF\u00A0-\u024F]/g, "");
-        if (printable.length < 3 || printable.length / r.title.length < 0.4) continue;
+        return printable.length >= 3 && printable.length / r.title.length >= 0.4;
+      });
 
-        // Title as clickable hyperlink (OSC 8 in TTY, markdown in non-TTY)
-        const displayTitle = r.webUrl ? link(r.webUrl, bold(cyan(r.title))) : bold(r.title);
-        console.log(displayTitle);
-        console.log(`  ${dim(r.section)} ${dim("|")} ${dim(r.notebook)}`);
-
-        // Show actual tagged lines if present (matching the filter)
+      type R = typeof results[0];
+      const renderPageBody = (r: R, indent: string = "  ") => {
         const tagLines = r.tagLines ?? [];
         const matchingLines = (() => {
           if (hasTodo) return tagLines.filter((l) => l.tag === "to-do");
@@ -820,26 +820,63 @@ yargs(hideBin(process.argv))
           const match = body.slice(idx, idx + ftsQuery.length);
           const after = body.slice(idx + ftsQuery.length, end);
           const snippet = (start > 0 ? "..." : "") + before + yellow(bold(match)) + after + (end < body.length ? "..." : "");
-          console.log(`  ${tagPrefix}${snippet}`);
+          console.log(`${indent}${tagPrefix}${snippet}`);
         } else if (matchingLines.length > 0) {
-          // Show each tagged line with its specific icon
           for (const line of matchingLines.slice(0, 5)) {
             const lineIcon = line.tag === "to-do" ? yellow(bold("☐")) :
                              line.tag === "to-do:completed" ? green(bold("☑")) :
                              bold(TAG_EMOJI[line.tag] ?? line.tag);
-            console.log(`  ${lineIcon} ${line.text}`);
+            console.log(`${indent}${lineIcon} ${line.text}`);
           }
-          if (matchingLines.length > 5) console.log(`  ${dim(`... and ${matchingLines.length - 5} more`)}`);
+          if (matchingLines.length > 5) console.log(`${indent}${dim(`... and ${matchingLines.length - 5} more`)}`);
         } else {
           const snippet = body.length >= 20 ? body.slice(0, 120) : null;
           if (tagPrefix) {
             const label = hasTodo ? "(unchecked items)" : hasDone ? "(completed items)" : hasCheckbox ? "(checkbox items)" : `(${tagFilters.join(",")})`;
-            console.log(`  ${tagPrefix}${snippet ?? label}`);
+            console.log(`${indent}${tagPrefix}${snippet ?? label}`);
           } else if (snippet) {
-            console.log(`  ${snippet}`);
+            console.log(`${indent}${snippet}`);
           }
         }
-        console.log();
+      };
+
+      if (groupMode) {
+        const byAccount = new Map<string, Map<string, Map<string, R[]>>>();
+        for (const r of cleanResults) {
+          const acct = r.account ?? "(unknown)";
+          if (!byAccount.has(acct)) byAccount.set(acct, new Map());
+          const nbMap = byAccount.get(acct)!;
+          if (!nbMap.has(r.notebook)) nbMap.set(r.notebook, new Map());
+          const secMap = nbMap.get(r.notebook)!;
+          if (!secMap.has(r.section)) secMap.set(r.section, []);
+          secMap.get(r.section)!.push(r);
+        }
+
+        for (const [acct, nbMap] of byAccount) {
+          const acctTotal = [...nbMap.values()].reduce((s, m) => s + [...m.values()].reduce((a, b) => a + b.length, 0), 0);
+          console.log(bold(cyan(`📘 ${acct}`)) + dim(`  (${acctTotal} page${acctTotal === 1 ? "" : "s"})`));
+          for (const [nb, secMap] of nbMap) {
+            console.log(`  ${bold(nb)}`);
+            for (const [sec, pages] of secMap) {
+              console.log(`    ${dim(sec)}`);
+              for (const r of pages) {
+                const title = r.webUrl ? link(r.webUrl, bold(r.title)) : bold(r.title);
+                console.log(`      ${title}`);
+                renderPageBody(r, "        ");
+              }
+            }
+          }
+          console.log();
+        }
+      } else {
+        for (const r of cleanResults) {
+          const displayTitle = r.webUrl ? link(r.webUrl, bold(cyan(r.title))) : bold(r.title);
+          console.log(displayTitle);
+          const acctStr = r.account ? ` ${dim("|")} ${dim(r.account)}` : "";
+          console.log(`  ${dim(r.section)} ${dim("|")} ${dim(r.notebook)}${acctStr}`);
+          renderPageBody(r);
+          console.log();
+        }
       }
       let syncedStr = "";
       try {
