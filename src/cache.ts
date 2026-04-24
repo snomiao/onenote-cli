@@ -23,6 +23,7 @@ interface CachedPage {
   webUrl: string; // OneNote Online URL for this page (section + page GUID)
   pageGuid?: string;
   account?: string | null; // which signed-in account this page came from
+  lastModified?: string | null; // ISO 8601 from OneNote (section or page level)
   tagLines?: Array<{ tag: string; text: string }>; // text content of tagged elements
 }
 
@@ -541,7 +542,8 @@ function openSearchDb(): Database {
       has_done INTEGER DEFAULT NULL,
       tags TEXT DEFAULT NULL,
       tag_lines TEXT DEFAULT NULL,
-      account TEXT DEFAULT NULL
+      account TEXT DEFAULT NULL,
+      last_modified TEXT DEFAULT NULL
     )
   `);
   // Migrate existing DBs that lack these columns
@@ -550,6 +552,7 @@ function openSearchDb(): Database {
   try { db.run("ALTER TABLE pages ADD COLUMN tags TEXT DEFAULT NULL"); } catch {}
   try { db.run("ALTER TABLE pages ADD COLUMN tag_lines TEXT DEFAULT NULL"); } catch {}
   try { db.run("ALTER TABLE pages ADD COLUMN account TEXT DEFAULT NULL"); } catch {}
+  try { db.run("ALTER TABLE pages ADD COLUMN last_modified TEXT DEFAULT NULL"); } catch {}
   db.run("CREATE INDEX IF NOT EXISTS pages_section ON pages(section, notebook)");
   db.run(`
     CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
@@ -788,7 +791,8 @@ function upsertSectionToIndex(
   anchors?: Array<{ offset: number; guid: string; title: string }>,
   officialPages?: Array<{ guid: string | null; title: string; webUrl?: string; apiId?: string }>,
   htmlTags?: Map<string, PageTagInfo>,
-  accountEmail?: string
+  accountEmail?: string,
+  sectionLastModified?: string
 ): void {
   // Build lookup maps
   const officialUrlByGuid = new Map<string, { url: string; title: string }>();
@@ -834,7 +838,7 @@ function upsertSectionToIndex(
     db.run("DELETE FROM pages WHERE section=? AND notebook=?", [section, notebook]);
 
     const insert = db.prepare(
-      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo, has_done, tags, tag_lines, account) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo, has_done, tags, tag_lines, account, last_modified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
 
     if (binBuf && anchors && anchors.length > 0) {
@@ -848,12 +852,12 @@ function upsertSectionToIndex(
         const body = cleanBodyForIndex((jsonBody + " " + binBody).slice(0, BINARY_BODY_LIMIT));
         const official = officialUrlByGuid.get(anchor.guid);
         const url = official?.url ?? buildPageUrl(webUrl, anchor.title, anchor.guid);
-        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid, getHasTodo(anchor.guid), getHasDone(anchor.guid), getTagsStr(anchor.guid), getTagLinesStr(anchor.guid), accountEmail ?? null);
+        insert.run(section, notebook, official?.title ?? anchor.title, body, url, anchor.guid, getHasTodo(anchor.guid), getHasDone(anchor.guid), getTagsStr(anchor.guid), getTagLinesStr(anchor.guid), accountEmail ?? null, sectionLastModified ?? null);
       }
     } else {
       for (const p of pages) {
         const url = p.officialUrl ?? buildPageUrl(webUrl, p.title, p.pageGuid);
-        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", null, null, null, null, accountEmail ?? null);
+        insert.run(section, notebook, p.title ?? "", cleanBodyForIndex(p.body ?? ""), url, p.pageGuid ?? "", null, null, null, null, accountEmail ?? null, sectionLastModified ?? null);
       }
     }
 
@@ -954,8 +958,8 @@ async function syncApiOnlySection(
   log: (msg: string) => void,
   emit?: SyncEmit
 ): Promise<number> {
-  const pagesForHtml: { guid: string; apiId: string; title: string; webUrl: string }[] = [];
-  let url: string | null = `/me/onenote/sections/${sectionId}/pages?$select=id,title,links&$top=100`;
+  const pagesForHtml: { guid: string; apiId: string; title: string; webUrl: string; lastModified: string | null }[] = [];
+  let url: string | null = `/me/onenote/sections/${sectionId}/pages?$select=id,title,links,lastModifiedDateTime&$top=100`;
   while (url) {
     const res = await graphFetchRaw(url);
     if (!res.ok) break;
@@ -963,7 +967,7 @@ async function syncApiOnlySection(
     for (const p of data.value ?? []) {
       const webUrl = p.links?.oneNoteWebUrl?.href ?? "";
       const guid = pageGuidFromWebUrl(webUrl) ?? p.id;
-      pagesForHtml.push({ guid, apiId: p.id, title: p.title ?? "", webUrl });
+      pagesForHtml.push({ guid, apiId: p.id, title: p.title ?? "", webUrl, lastModified: p.lastModifiedDateTime ?? null });
     }
     url = data["@odata.nextLink"] ?? null;
   }
@@ -980,7 +984,7 @@ async function syncApiOnlySection(
   // to return bodies too. For now keep it simple — we already have tag_lines which contain the tagged text.
   db.transaction(() => {
     const insert = db.prepare(
-      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo, has_done, tags, tag_lines, account) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
+      "INSERT INTO pages(section, notebook, title, body, web_url, page_guid, has_todo, has_done, tags, tag_lines, account, last_modified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
     );
     // Delete existing entries for this section first
     db.run(
@@ -1000,7 +1004,7 @@ async function syncApiOnlySection(
       const hasDone = tags.includes("to-do:completed") ? 1 : 0;
       // Body = concatenation of tag line texts (used for search when no binary body available)
       const body = lines.map((l) => l.text).join(" ").slice(0, 5000);
-      insert.run(sectionName, notebookName, p.title, body, p.webUrl, p.guid, hasTodo, hasDone, tagsStr, linesStr, accountEmail);
+      insert.run(sectionName, notebookName, p.title, body, p.webUrl, p.guid, hasTodo, hasDone, tagsStr, linesStr, accountEmail, p.lastModified);
     }
     // Rebuild FTS entries
     db.run(
@@ -1108,7 +1112,7 @@ async function syncAccountCache(
               if (htmlTags.size > 0) {
                 emit?.({ type: "tags", count: htmlTags.size });
                 const updateStmt = db.prepare(
-                  "UPDATE pages SET tags=?, tag_lines=?, has_todo=?, has_done=?, account=COALESCE(account, ?) WHERE page_guid=? AND section=? AND notebook=?"
+                  "UPDATE pages SET tags=?, tag_lines=?, has_todo=?, has_done=?, account=COALESCE(account, ?), last_modified=COALESCE(last_modified, ?) WHERE page_guid=? AND section=? AND notebook=?"
                 );
                 db.transaction(() => {
                   for (const [guid, info] of htmlTags) {
@@ -1116,7 +1120,7 @@ async function syncAccountCache(
                     const linesStr = info.lines.length > 0 ? JSON.stringify(info.lines) : null;
                     const hasTodo = info.tags.includes("to-do") ? 1 : 0;
                     const hasDone = info.tags.includes("to-do:completed") ? 1 : 0;
-                    updateStmt.run(tagsStr, linesStr, hasTodo, hasDone, accountEmail, guid, sec.name, nb.displayName);
+                    updateStmt.run(tagsStr, linesStr, hasTodo, hasDone, accountEmail, sec.lastModified ?? null, guid, sec.name, nb.displayName);
                   }
                 })();
               }
@@ -1210,7 +1214,8 @@ async function syncAccountCache(
         cacheData.anchors,
         cacheData.officialPages,
         htmlTags,
-        accountEmail
+        accountEmail,
+        sec.lastModified
       );
       log(`    [ok] ${sec.name} (${pages.length} pages)`);
       emit?.({ type: "done", notebook: nb.displayName, section: sec.name, pages: pages.length, status: "ok" });
@@ -1474,14 +1479,14 @@ async function searchSection(jsonPath: string, query: string): Promise<CachedPag
 
 export async function searchLocal(
   query: string,
-  { offset = 0, limit = 100, notebook, section, account }: { offset?: number; limit?: number; notebook?: string; section?: string; account?: string } = {}
+  { offset = 0, limit = 100, notebook, section, account, since }: { offset?: number; limit?: number; notebook?: string; section?: string; account?: string; since?: string } = {}
 ): Promise<CachedPage[]> {
   const { ftsQuery, hasTodo, hasDone, hasCheckbox, tagFilters } = parseTagsFromQuery(query);
   // Use FTS5 index if available (built during sync)
   try {
     const db = new Database(SEARCH_DB_PATH, { readonly: true });
 
-    type Row = { section: string; notebook: string; title: string; body: string; web_url: string; page_guid: string; tag_lines: string | null; account: string | null };
+    type Row = { section: string; notebook: string; title: string; body: string; web_url: string; page_guid: string; tag_lines: string | null; account: string | null; last_modified: string | null };
     let rows: Row[];
 
     // Build tag filter SQL: each tagFilter value needs tags LIKE '%|value|%'
@@ -1492,6 +1497,10 @@ export async function searchLocal(
       for (const tagVal of tagFilters) {
         conditions.push(`${prefix}tags LIKE ?`);
         params.push(`%|${tagVal}|%`);
+      }
+      if (since) {
+        conditions.push(`${prefix}last_modified >= ?`);
+        params.push(since);
       }
     };
 
@@ -1505,10 +1514,10 @@ export async function searchLocal(
       addTagConditions(conditions, params, "p.");
       params.push(limit, offset);
       rows = db.query<Row, (string | number | null)[]>(
-        `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid, p.tag_lines, p.account
+        `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid, p.tag_lines, p.account, p.last_modified
          FROM pages_fts f JOIN pages p ON f.rowid = p.id
          WHERE ${conditions.join(" AND ")}
-         ORDER BY rank, (p.account IS NULL), p.account, p.notebook, p.section, p.title
+         ORDER BY rank, (p.account IS NULL), p.account, p.last_modified DESC, p.notebook, p.section, p.title
          LIMIT ? OFFSET ?`
       ).all(...params);
     } else {
@@ -1520,10 +1529,10 @@ export async function searchLocal(
       addTagConditions(conditions, params);
       const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
       params.push(limit, offset);
-      // Tag-only queries: prefer pages with actual tag_lines, then group by account/notebook/section
+      // Tag-only queries: prefer pages with tag_lines, then recent non-null accounts first
       rows = db.query<Row, (string | number | null)[]>(
-        `SELECT section, notebook, title, body, web_url, page_guid, tag_lines, account FROM pages ${where}
-         ORDER BY (tag_lines IS NOT NULL) DESC, (account IS NULL), account, notebook, section, title
+        `SELECT section, notebook, title, body, web_url, page_guid, tag_lines, account, last_modified FROM pages ${where}
+         ORDER BY (tag_lines IS NOT NULL) DESC, (account IS NULL), account, last_modified DESC, notebook, section, title
          LIMIT ? OFFSET ?`
       ).all(...params);
     }
@@ -1540,6 +1549,7 @@ export async function searchLocal(
         webUrl: r.web_url,
         pageGuid: r.page_guid,
         account: r.account,
+        lastModified: r.last_modified,
         tagLines,
       };
     });
@@ -1617,7 +1627,8 @@ export async function rebuildSearchIndex(onProgress?: (msg: string) => void): Pr
           try { binBuf = await readFile(jsonPath.replace(/\.json$/, ".one")); } catch {}
           upsertSectionToIndex(
             db, data.section, data.notebook, data.pages ?? [], data.webUrl ?? "",
-            binBuf, data.anchors, data.officialPages
+            binBuf, data.anchors, data.officialPages,
+            undefined, data.account ?? undefined, data.lastModified ?? undefined
           );
           count++;
         } catch {}
