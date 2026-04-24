@@ -52,12 +52,13 @@ async function graphFetchRaw(path: string): Promise<Response> {
   const url = path.startsWith("http")
     ? path
     : `https://graph.microsoft.com/v1.0${path}`;
-  // Retry on 429 (rate limit) with exponential backoff, respecting Retry-After header
-  for (let attempt = 0; attempt < 8; attempt++) {
+  // Retry on 429 with bounded backoff. Total max wait: ~3 min before giving up so the
+  // calling section moves on rather than blocking the whole sync.
+  for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (res.status !== 429) return res;
     const retryAfter = parseInt(res.headers.get("retry-after") ?? "0", 10);
-    const delayMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(5000 * 2 ** attempt, 120000);
+    const delayMs = retryAfter > 0 ? Math.min(retryAfter * 1000, 60000) : Math.min(10000 * 2 ** attempt, 60000);
     await new Promise((r) => setTimeout(r, delayMs));
   }
   return fetch(url, { headers: { Authorization: `Bearer ${token}` } });
