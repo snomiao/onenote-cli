@@ -1250,14 +1250,32 @@ function buildPageUrl(
 }
 
 export async function isCacheEmpty(): Promise<boolean> {
+  // Also treat DB as authoritative: if there are any indexed pages, cache is not empty
   try {
-    const nbDirs = await readdir(CACHE_DIR);
-    for (const nb of nbDirs) {
-      const nbDir = join(CACHE_DIR, nb);
-      const s = await stat(nbDir);
+    const db = new Database(SEARCH_DB_PATH, { readonly: true });
+    const r = db.query("SELECT COUNT(*) as c FROM pages").get() as { c: number } | null;
+    db.close();
+    if ((r?.c ?? 0) > 0) return false;
+  } catch {}
+  // Walk the filesystem: look for .json files up to 2 levels deep
+  // (legacy: .onenote/cache/<nb>/*.json; new: .onenote/cache/<account>/<nb>/*.json)
+  try {
+    const top = await readdir(CACHE_DIR);
+    for (const a of top) {
+      const aPath = join(CACHE_DIR, a);
+      const s = await stat(aPath);
       if (!s.isDirectory()) continue;
-      const files = await readdir(nbDir);
-      if (files.some((f) => f.endsWith(".json"))) return false;
+      const level1 = await readdir(aPath);
+      if (level1.some((f) => f.endsWith(".json"))) return false;
+      for (const b of level1) {
+        const bPath = join(aPath, b);
+        try {
+          const bs = await stat(bPath);
+          if (!bs.isDirectory()) continue;
+          const level2 = await readdir(bPath);
+          if (level2.some((f) => f.endsWith(".json"))) return false;
+        } catch {}
+      }
     }
   } catch {}
   return true;
