@@ -679,6 +679,9 @@ yargs(hideBin(process.argv))
         .option("offset", { type: "number", alias: "p", default: 0, describe: "Skip first N results (for pagination)" })
         .option("account", { type: "string", alias: "a", describe: "Limit to a specific account email (e.g. snomiao@gmail.com)" })
         .option("group", { type: "boolean", alias: "g", describe: "Group results hierarchically by account > notebook > section" })
+        .option("compact", { type: "boolean", alias: "c", describe: "One line per page: [count] title — section | notebook" })
+        .option("max-lines", { type: "number", alias: "m", default: 5, describe: "Max tag lines to show per page (default 5)" })
+        .option("since", { type: "string", describe: "Only pages modified after this date (YYYY-MM-DD or '30d' / '3m' / '1y')" })
         .epilog(
           [
             "Query syntax:",
@@ -746,7 +749,28 @@ yargs(hideBin(process.argv))
       const secFilter = normalizeRef(argv.section as string | undefined);
       const accountFilter = normalizeRef(argv.account as string | undefined);
       const groupMode = argv.group as boolean | undefined;
-      const results = await searchLocal(query, { offset, limit, notebook: nbFilter, section: secFilter, account: accountFilter });
+      const compactMode = argv.compact as boolean | undefined;
+      const maxLines = (argv["max-lines"] as number | undefined) ?? 5;
+
+      // Parse --since: accepts "YYYY-MM-DD", "30d", "3m", "1y", or full ISO
+      const parseSince = (s: string | undefined): string | undefined => {
+        if (!s) return undefined;
+        const rel = s.match(/^(\d+)([dmy])$/i);
+        if (rel) {
+          const n = parseInt(rel[1], 10);
+          const unit = rel[2].toLowerCase();
+          const d = new Date();
+          if (unit === "d") d.setDate(d.getDate() - n);
+          else if (unit === "m") d.setMonth(d.getMonth() - n);
+          else if (unit === "y") d.setFullYear(d.getFullYear() - n);
+          return d.toISOString();
+        }
+        // YYYY-MM-DD → to ISO start of day
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + "T00:00:00Z").toISOString();
+        return s; // assume already ISO
+      };
+      const sinceIso = parseSince(argv.since as string | undefined);
+      const results = await searchLocal(query, { offset, limit, notebook: nbFilter, section: secFilter, account: accountFilter, since: sinceIso });
       if (results.length === 0) {
         console.log("No results found.");
         return;
@@ -801,16 +825,24 @@ yargs(hideBin(process.argv))
       });
 
       type R = typeof results[0];
-      const renderPageBody = (r: R, indent: string = "  ") => {
+      const getMatchingLines = (r: R) => {
         const tagLines = r.tagLines ?? [];
-        const matchingLines = (() => {
-          if (hasTodo) return tagLines.filter((l) => l.tag === "to-do");
-          if (hasDone) return tagLines.filter((l) => l.tag === "to-do:completed");
-          if (hasCheckbox) return tagLines.filter((l) => l.tag === "to-do" || l.tag === "to-do:completed");
-          if (tagFilters.length > 0) return tagLines.filter((l) => tagFilters.includes(l.tag));
-          return [];
-        })();
+        if (hasTodo) return tagLines.filter((l) => l.tag === "to-do");
+        if (hasDone) return tagLines.filter((l) => l.tag === "to-do:completed");
+        if (hasCheckbox) return tagLines.filter((l) => l.tag === "to-do" || l.tag === "to-do:completed");
+        if (tagFilters.length > 0) return tagLines.filter((l) => tagFilters.includes(l.tag));
+        return [];
+      };
 
+      const fmtDate = (iso: string | null | undefined): string => {
+        if (!iso) return "";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "";
+        return d.toISOString().slice(0, 10);
+      };
+
+      const renderPageBody = (r: R, indent: string = "  ") => {
+        const matchingLines = getMatchingLines(r);
         const body = cleanSnippet(r.body);
         const idx = lowerQuery ? body.toLowerCase().indexOf(lowerQuery) : -1;
         if (idx >= 0) {
@@ -822,13 +854,13 @@ yargs(hideBin(process.argv))
           const snippet = (start > 0 ? "..." : "") + before + yellow(bold(match)) + after + (end < body.length ? "..." : "");
           console.log(`${indent}${tagPrefix}${snippet}`);
         } else if (matchingLines.length > 0) {
-          for (const line of matchingLines.slice(0, 5)) {
+          for (const line of matchingLines.slice(0, maxLines)) {
             const lineIcon = line.tag === "to-do" ? yellow(bold("☐")) :
                              line.tag === "to-do:completed" ? green(bold("☑")) :
                              bold(TAG_EMOJI[line.tag] ?? line.tag);
             console.log(`${indent}${lineIcon} ${line.text}`);
           }
-          if (matchingLines.length > 5) console.log(`${indent}${dim(`... and ${matchingLines.length - 5} more`)}`);
+          if (matchingLines.length > maxLines) console.log(`${indent}${dim(`... and ${matchingLines.length - maxLines} more`)}`);
         } else {
           const snippet = body.length >= 20 ? body.slice(0, 120) : null;
           if (tagPrefix) {
@@ -892,14 +924,32 @@ yargs(hideBin(process.argv))
           }
           renderNotebook(merged, "", "    ", "      ");
         }
-      } else {
+      } else if (compactMode) {
+        // Compact: one line per page, [count] title — section | notebook [date]
         for (const r of cleanResults) {
-          const displayTitle = r.webUrl ? link(r.webUrl, bold(cyan(r.title))) : bold(r.title);
-          console.log(displayTitle);
-          const acctStr = showAccounts && r.account ? ` ${dim("|")} ${dim(r.account)}` : "";
-          console.log(`  ${dim(r.section)} ${dim("|")} ${dim(r.notebook)}${acctStr}`);
-          renderPageBody(r);
-          console.log();
+          const matchingLines = getMatchingLines(r);
+          const countStr = matchingLines.length > 0 ? `${yellow(bold(`[${matchingLines.length}]`))} ` : "";
+          const titleStr = r.webUrl ? link(r.webUrl, bold(cyan(r.title))) : bold(cyan(r.title));
+          const locStr = dim(`${r.section} | ${r.notebook}`);
+          const acctStr = showAccounts && r.account ? dim(` | ${r.account}`) : "";
+          const dateStr = r.lastModified ? dim(` [${fmtDate(r.lastModified)}]`) : "";
+          console.log(`${countStr}${titleStr} ${dim("—")} ${locStr}${acctStr}${dateStr}`);
+        }
+      } else {
+        // Flat: collapse consecutive same (account, notebook, section) header into one line
+        let lastHeader = "";
+        for (const r of cleanResults) {
+          const header = `${r.section}|${r.notebook}|${r.account ?? ""}`;
+          if (header !== lastHeader) {
+            if (lastHeader !== "") console.log();
+            const acctStr = showAccounts && r.account ? ` ${dim("|")} ${dim(r.account)}` : "";
+            console.log(`${bold(r.notebook)} ${dim("›")} ${dim(r.section)}${acctStr}`);
+            lastHeader = header;
+          }
+          const displayTitle = r.webUrl ? link(r.webUrl, bold(cyan(r.title))) : bold(cyan(r.title));
+          const dateStr = r.lastModified ? dim(` [${fmtDate(r.lastModified)}]`) : "";
+          console.log(`  ${displayTitle}${dateStr}`);
+          renderPageBody(r, "    ");
         }
       }
       let syncedStr = "";
