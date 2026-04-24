@@ -22,6 +22,7 @@ interface CachedPage {
   notebook: string;
   webUrl: string; // OneNote Online URL for this page (section + page GUID)
   pageGuid?: string;
+  account?: string | null; // which signed-in account this page came from
   tagLines?: Array<{ tag: string; text: string }>; // text content of tagged elements
 }
 
@@ -1473,14 +1474,14 @@ async function searchSection(jsonPath: string, query: string): Promise<CachedPag
 
 export async function searchLocal(
   query: string,
-  { offset = 0, limit = 100, notebook, section }: { offset?: number; limit?: number; notebook?: string; section?: string } = {}
+  { offset = 0, limit = 100, notebook, section, account }: { offset?: number; limit?: number; notebook?: string; section?: string; account?: string } = {}
 ): Promise<CachedPage[]> {
   const { ftsQuery, hasTodo, hasDone, hasCheckbox, tagFilters } = parseTagsFromQuery(query);
   // Use FTS5 index if available (built during sync)
   try {
     const db = new Database(SEARCH_DB_PATH, { readonly: true });
 
-    type Row = { section: string; notebook: string; title: string; body: string; web_url: string; page_guid: string; tag_lines: string | null };
+    type Row = { section: string; notebook: string; title: string; body: string; web_url: string; page_guid: string; tag_lines: string | null; account: string | null };
     let rows: Row[];
 
     // Build tag filter SQL: each tagFilter value needs tags LIKE '%|value|%'
@@ -1500,25 +1501,30 @@ export async function searchLocal(
       const params: (string | number | null)[] = [ftsParam];
       if (notebook) { conditions.push("p.notebook LIKE ?"); params.push(`%${notebook}%`); }
       if (section) { conditions.push("p.section LIKE ?"); params.push(`%${section}%`); }
+      if (account) { conditions.push("p.account = ?"); params.push(account); }
       addTagConditions(conditions, params, "p.");
       params.push(limit, offset);
       rows = db.query<Row, (string | number | null)[]>(
-        `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid, p.tag_lines
+        `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid, p.tag_lines, p.account
          FROM pages_fts f JOIN pages p ON f.rowid = p.id
-         WHERE ${conditions.join(" AND ")} ORDER BY rank LIMIT ? OFFSET ?`
+         WHERE ${conditions.join(" AND ")}
+         ORDER BY rank, p.account, p.notebook, p.section, p.title
+         LIMIT ? OFFSET ?`
       ).all(...params);
     } else {
       const conditions: string[] = [];
       const params: (string | number | null)[] = [];
       if (notebook) { conditions.push("notebook LIKE ?"); params.push(`%${notebook}%`); }
       if (section) { conditions.push("section LIKE ?"); params.push(`%${section}%`); }
+      if (account) { conditions.push("account = ?"); params.push(account); }
       addTagConditions(conditions, params);
       const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
       params.push(limit, offset);
-      // Prefer pages with actual tag_lines (fetched from HTML) over binary-only detections
+      // Tag-only queries: prefer pages with actual tag_lines, then group by account/notebook/section
       rows = db.query<Row, (string | number | null)[]>(
-        `SELECT section, notebook, title, body, web_url, page_guid, tag_lines FROM pages ${where}
-         ORDER BY (tag_lines IS NOT NULL) DESC, id LIMIT ? OFFSET ?`
+        `SELECT section, notebook, title, body, web_url, page_guid, tag_lines, account FROM pages ${where}
+         ORDER BY (tag_lines IS NOT NULL) DESC, account, notebook, section, title
+         LIMIT ? OFFSET ?`
       ).all(...params);
     }
 
@@ -1533,6 +1539,7 @@ export async function searchLocal(
         notebook: r.notebook,
         webUrl: r.web_url,
         pageGuid: r.page_guid,
+        account: r.account,
         tagLines,
       };
     });
