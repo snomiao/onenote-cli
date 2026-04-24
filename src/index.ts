@@ -840,10 +840,14 @@ yargs(hideBin(process.argv))
         }
       };
 
+      // Show account info only when results span multiple accounts (null counts as distinct)
+      const uniqueAccounts = new Set(cleanResults.map((r) => r.account ?? ""));
+      const showAccounts = uniqueAccounts.size > 1;
+
       if (groupMode) {
         const byAccount = new Map<string, Map<string, Map<string, R[]>>>();
         for (const r of cleanResults) {
-          const acct = r.account ?? "(unknown)";
+          const acct = r.account ?? "(local)";
           if (!byAccount.has(acct)) byAccount.set(acct, new Map());
           const nbMap = byAccount.get(acct)!;
           if (!nbMap.has(r.notebook)) nbMap.set(r.notebook, new Map());
@@ -852,27 +856,47 @@ yargs(hideBin(process.argv))
           secMap.get(r.section)!.push(r);
         }
 
-        for (const [acct, nbMap] of byAccount) {
-          const acctTotal = [...nbMap.values()].reduce((s, m) => s + [...m.values()].reduce((a, b) => a + b.length, 0), 0);
-          console.log(bold(cyan(`📘 ${acct}`)) + dim(`  (${acctTotal} page${acctTotal === 1 ? "" : "s"})`));
+        const renderNotebook = (nbMap: Map<string, Map<string, R[]>>, nbIndent: string, pageIndent: string, bodyIndent: string) => {
           for (const [nb, secMap] of nbMap) {
-            console.log(`  ${bold(nb)}`);
+            console.log(`${nbIndent}${bold(nb)}`);
             for (const [sec, pages] of secMap) {
-              console.log(`    ${dim(sec)}`);
+              console.log(`${nbIndent}  ${dim(sec)}`);
               for (const r of pages) {
                 const title = r.webUrl ? link(r.webUrl, bold(r.title)) : bold(r.title);
-                console.log(`      ${title}`);
-                renderPageBody(r, "        ");
+                console.log(`${pageIndent}${title}`);
+                renderPageBody(r, bodyIndent);
               }
             }
           }
-          console.log();
+        };
+
+        if (showAccounts) {
+          for (const [acct, nbMap] of byAccount) {
+            const acctTotal = [...nbMap.values()].reduce((s, m) => s + [...m.values()].reduce((a, b) => a + b.length, 0), 0);
+            console.log(bold(cyan(`📘 ${acct}`)) + dim(`  (${acctTotal} page${acctTotal === 1 ? "" : "s"})`));
+            renderNotebook(nbMap, "  ", "      ", "        ");
+            console.log();
+          }
+        } else {
+          // Single account (or all null) — skip account header, flatten one level
+          const merged = new Map<string, Map<string, R[]>>();
+          for (const nbMap of byAccount.values()) {
+            for (const [nb, secMap] of nbMap) {
+              if (!merged.has(nb)) merged.set(nb, new Map());
+              const m = merged.get(nb)!;
+              for (const [sec, pages] of secMap) {
+                if (!m.has(sec)) m.set(sec, []);
+                m.get(sec)!.push(...pages);
+              }
+            }
+          }
+          renderNotebook(merged, "", "    ", "      ");
         }
       } else {
         for (const r of cleanResults) {
           const displayTitle = r.webUrl ? link(r.webUrl, bold(cyan(r.title))) : bold(r.title);
           console.log(displayTitle);
-          const acctStr = r.account ? ` ${dim("|")} ${dim(r.account)}` : "";
+          const acctStr = showAccounts && r.account ? ` ${dim("|")} ${dim(r.account)}` : "";
           console.log(`  ${dim(r.section)} ${dim("|")} ${dim(r.notebook)}${acctStr}`);
           renderPageBody(r);
           console.log();

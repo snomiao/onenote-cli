@@ -1508,7 +1508,7 @@ export async function searchLocal(
         `SELECT p.section, p.notebook, p.title, p.body, p.web_url, p.page_guid, p.tag_lines, p.account
          FROM pages_fts f JOIN pages p ON f.rowid = p.id
          WHERE ${conditions.join(" AND ")}
-         ORDER BY rank, p.account, p.notebook, p.section, p.title
+         ORDER BY rank, (p.account IS NULL), p.account, p.notebook, p.section, p.title
          LIMIT ? OFFSET ?`
       ).all(...params);
     } else {
@@ -1523,7 +1523,7 @@ export async function searchLocal(
       // Tag-only queries: prefer pages with actual tag_lines, then group by account/notebook/section
       rows = db.query<Row, (string | number | null)[]>(
         `SELECT section, notebook, title, body, web_url, page_guid, tag_lines, account FROM pages ${where}
-         ORDER BY (tag_lines IS NOT NULL) DESC, account, notebook, section, title
+         ORDER BY (tag_lines IS NOT NULL) DESC, (account IS NULL), account, notebook, section, title
          LIMIT ? OFFSET ?`
       ).all(...params);
     }
