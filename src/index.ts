@@ -405,7 +405,7 @@ yargs(hideBin(process.argv))
         )
         .command(
           "append <ref>",
-          "Append HTML content to a page's body (accepts path, page ID, or OneNote URL)",
+          "Append HTML content to a page's body (accepts path, page ID, or OneNote URL). WARNING: the Microsoft Graph append API re-parses the whole page and may reformat or strip styles from existing content.",
           (y) =>
             y
               .positional("ref", { type: "string", demandOption: true })
