@@ -64,7 +64,7 @@ onenote sections create -n <ref> --name <name>
 onenote pages list [<ref>]                    # e.g. "NotebookA/SectionB"
 onenote pages get <ref>
 onenote pages create -s <ref> -t <title> --body "# Heading" --md
-onenote pages append <ref> -c "- bullet" --md
+onenote pages append <ref> -c "- bullet" --md   # ⚠ may reformat existing content (Graph API limitation)
 onenote pages update <ref> --target "#element-id" --action replace -c "<p>new</p>" --sha <4-char>
 onenote pages delete <ref> --sha <4-char>
 
@@ -82,6 +82,12 @@ onenote sync                # Download and cache all sections
 onenote search <query>      # Full-text page-level search (local)
 onenote search <query> -o   # Online section-level search (Graph API)
 ```
+
+### Append caveat
+
+`pages append` uses the Microsoft Graph OneNote PATCH API (`action: "append"`). This is safe — it never deletes existing content — but the Graph API re-parses the entire page on the server side, which can normalize or strip custom fonts, indentation, and other formatting from **existing** content. New content is added correctly.
+
+If preserving exact formatting matters, edit the page directly in OneNote Online or the desktop app.
 
 ### Search Example
 
