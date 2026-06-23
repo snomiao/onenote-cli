@@ -23,6 +23,17 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&#39;/g, "'");
 }
 
+// Convert struck-through runs to markdown `~~…~~` before tags are stripped.
+// OneNote emits both <s>/<strike>/<del> and styled spans (text-decoration:line-through).
+function markStrikethrough(html: string): string {
+  return html
+    .replace(/<(?:s|strike|del)\b[^>]*>([\s\S]*?)<\/(?:s|strike|del)>/gi, "~~$1~~")
+    .replace(
+      /<span\b[^>]*text-decoration\s*:[^"';>]*line-through[^>]*>([\s\S]*?)<\/span>/gi,
+      "~~$1~~"
+    );
+}
+
 function extractAttr(tag: string, name: string): string | undefined {
   const match = tag.match(new RegExp(`${name}=(["'])(.*?)\\1`, "i"));
   return match?.[2];
@@ -237,7 +248,7 @@ async function resolveResourceTargets(html: string) {
 
 function stripTagsInline(html: string): string {
   return decodeHtmlEntities(
-    html
+    markStrikethrough(html)
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
       .replace(/<br\s*\/?>/gi, " ")
@@ -381,8 +392,10 @@ export async function renderHtmlForRead(
 
   rendered = replaceTopLevelTables(rendered);
 
-  return decodeHtmlEntities(
-    rendered
+  const text = decodeHtmlEntities(
+    markStrikethrough(rendered)
+      // Drop document <head> (title/meta) so the page title isn't re-emitted as body text.
+      .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, "")
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
       .replace(/<br\s*\/?>/gi, "\n")
@@ -392,9 +405,17 @@ export async function renderHtmlForRead(
       .replace(/<\/li>/gi, "\n")
       .replace(/<li[^>]*>/gi, "- ")
       .replace(/<[^>]+>/g, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim()
   );
+
+  // OneNote's HTML is pretty-printed with tab indentation; once tags are gone
+  // that inter-tag whitespace survives as leading tabs and blank-but-not-empty
+  // lines. Trim each line and collapse blank runs to keep the output readable.
+  return text
+    .split("\n")
+    .map((line) => line.replace(/^[ \t]+/, "").replace(/\s+$/, ""))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export async function renderResourceForRead(resourceUrl: string): Promise<{
