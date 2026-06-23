@@ -7,6 +7,7 @@ export type SyncEvent =
   | { type: "section"; index: number; notebook: string; section: string; size?: string }
   | { type: "retag"; index: number; notebook: string; section: string }
   | { type: "tags"; count: number }
+  | { type: "hint"; text: string }
   | { type: "done"; notebook: string; section: string; pages: number; status: "ok" | "failed" | "skipped" }
   | { type: "complete"; downloaded: number; retagged: number; skipped: number };
 
@@ -76,6 +77,8 @@ function SyncUI({ events }: { events: AsyncIterable<SyncEvent> }) {
                 current: null,
               };
             }
+            case "hint":
+              return { ...s, log: [...s.log, `💡 ${ev.text}`].slice(-6) };
             case "complete":
               return { ...s, complete: true, downloaded: ev.downloaded, retagged: ev.retagged, skipped: ev.skipped };
           }
@@ -138,7 +141,7 @@ function SyncUI({ events }: { events: AsyncIterable<SyncEvent> }) {
       {/* Recent log */}
       <Box flexDirection="column" marginTop={1}>
         {state.log.map((line, i) => (
-          <Text key={i} color={line.startsWith("✗") ? "red" : line.startsWith("✓") ? "green" : "gray"}>
+          <Text key={i} color={line.startsWith("✗") ? "red" : line.startsWith("✓") ? "green" : line.startsWith("💡") ? "cyan" : "gray"}>
             {"  "}{line}
           </Text>
         ))}
@@ -163,13 +166,27 @@ export async function runSyncUI(
 ): Promise<void> {
   // Fall back to plain text if not a TTY
   if (!process.stdout.isTTY) {
+    const plain = { startMs: Date.now(), total: 0, done: 0 };
     const emit = (ev: SyncEvent) => {
-      if (ev.type === "account") process.stdout.write(`\n=== [${ev.index}/${ev.total}] ${ev.email} ===\n`);
-      if (ev.type === "total") process.stdout.write(`${ev.total} sections across ${ev.notebooks} notebooks\n`);
+      if (ev.type === "account") { plain.startMs = Date.now(); plain.done = 0; plain.total = 0; process.stdout.write(`\n=== [${ev.index}/${ev.total}] ${ev.email} ===\n`); }
+      if (ev.type === "total") { plain.total = ev.total; process.stdout.write(`${ev.total} sections across ${ev.notebooks} notebooks\n`); }
       if (ev.type === "section") process.stdout.write(`  [${ev.index}] ${ev.notebook}/${ev.section}${ev.size ? ` (${ev.size})` : ""}\n`);
       if (ev.type === "retag") process.stdout.write(`  [${ev.index}] ${ev.notebook}/${ev.section} (retag only)\n`);
-      if (ev.type === "done" && ev.status === "ok") process.stdout.write(`    [ok] ${ev.section} (${ev.pages} pages)\n`);
-      if (ev.type === "done" && ev.status === "failed") process.stdout.write(`    [failed] ${ev.section}\n`);
+      if (ev.type === "done") {
+        plain.done++;
+        if (ev.status === "ok") process.stdout.write(`    [ok] ${ev.section} (${ev.pages} pages)\n`);
+        else if (ev.status === "failed") process.stdout.write(`    [failed] ${ev.section}\n`);
+        if (plain.total > 0) {
+          const elapsed = Date.now() - plain.startMs;
+          const speed = plain.done / (elapsed / 1000);
+          const remaining = plain.total - plain.done;
+          const eta = speed > 0 && remaining > 0 ? remaining / speed : 0;
+          const pct = Math.round((plain.done / plain.total) * 100);
+          const etaStr = eta > 0 ? `  ETA: ${fmtTime(eta * 1000)}` : "";
+          process.stdout.write(`  [${plain.done}/${plain.total}] ${pct}%  elapsed: ${fmtTime(elapsed)}${etaStr}\n`);
+        }
+      }
+      if (ev.type === "hint") process.stdout.write(`  tip: ${ev.text}\n`);
       if (ev.type === "complete") process.stdout.write(`Sync complete. ${ev.downloaded} downloaded, ${ev.retagged} retagged, ${ev.skipped} up-to-date.\n`);
     };
     await syncFn(emit);

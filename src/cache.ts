@@ -872,6 +872,13 @@ function upsertSectionToIndex(
 
 export type SyncEmit = (ev: import("./sync-ui").SyncEvent) => void;
 
+/** Optional scoping for `onenote sync`. Each field is a case-insensitive substring match. */
+export type SyncFilter = { account?: string; notebook?: string; section?: string };
+
+function matchesFilter(value: string, filter?: string): boolean {
+  return !filter || value.toLowerCase().includes(filter.toLowerCase());
+}
+
 /** Sanitize email for filesystem path usage (replace @ and any other unsafe chars). */
 function accountDirName(email: string): string {
   return email.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -915,20 +922,34 @@ async function migrateLegacyCacheToAccount(accountEmail: string, log: (msg: stri
 
 export async function syncCache(
   onProgress?: (msg: string) => void,
-  emit?: SyncEmit
+  emit?: SyncEmit,
+  filter?: SyncFilter
 ): Promise<void> {
   await ensureDir(CACHE_DIR);
   await ensureDir(join(PKG_ROOT, ".onenote"));
   const log = onProgress ?? console.log;
 
-  const accounts = await listAccounts();
-  if (accounts.length === 0) {
+  const allAccounts = await listAccounts();
+  if (allAccounts.length === 0) {
     log("No accounts logged in. Run `onenote auth login` first.");
     return;
   }
 
   // One-time migration: move legacy caches (.onenote/cache/<nb>/) into the first account's namespace
-  await migrateLegacyCacheToAccount(accounts[0]!.username, log);
+  await migrateLegacyCacheToAccount(allAccounts[0]!.username, log);
+
+  const accounts = allAccounts.filter((a) => matchesFilter(a.username, filter?.account));
+  if (accounts.length === 0) {
+    const msg = `No account matches --account=${filter?.account}. Available: ${allAccounts.map((a) => a.username).join(", ")}`;
+    log(msg);
+    emit?.({ type: "hint", text: msg });
+    return;
+  }
+
+  // Progressively hint how to narrow the run (useful in non-TTY / agent contexts).
+  if (!filter?.account && allAccounts.length > 1) {
+    emit?.({ type: "hint", text: `${allAccounts.length} accounts — limit with --account=<email>` });
+  }
 
   log(`Syncing ${accounts.length} account${accounts.length > 1 ? "s" : ""}: ${accounts.map((a) => a.username).join(", ")}`);
 
@@ -939,7 +960,7 @@ export async function syncCache(
     emit?.({ type: "account", email: account.username, index: idx, total: accounts.length });
     log(`\n=== ${account.username} ===`);
     try {
-      await syncAccountCache(account.username, log, emit);
+      await syncAccountCache(account.username, log, emit, filter);
     } catch (err) {
       log(`  [error] ${account.username}: ${(err as Error).message}`);
     }
@@ -1020,13 +1041,24 @@ async function syncApiOnlySection(
 async function syncAccountCache(
   accountEmail: string,
   log: (msg: string) => void,
-  emit?: SyncEmit
+  emit?: SyncEmit,
+  filter?: SyncFilter
 ): Promise<void> {
   const accountCacheDir = join(CACHE_DIR, accountDirName(accountEmail));
   await ensureDir(accountCacheDir);
   const db = openSearchDb();
 
-  const notebooks = await listNotebooks();
+  const allNotebooks = await listNotebooks();
+  const notebooks = allNotebooks.filter((nb) => matchesFilter(nb.displayName, filter?.notebook));
+  if (notebooks.length === 0) {
+    const msg = `No notebook matches --notebook=${filter?.notebook}. Available: ${allNotebooks.map((nb) => nb.displayName).join(", ")}`;
+    log(msg);
+    emit?.({ type: "hint", text: msg });
+    return;
+  }
+  if (!filter?.notebook && allNotebooks.length > 1) {
+    emit?.({ type: "hint", text: `${allNotebooks.length} notebooks — limit with --notebook=<name>` });
+  }
   log(`Found ${notebooks.length} notebooks`);
   emit?.({ type: "total", total: 0, notebooks: notebooks.length });
 
@@ -1048,12 +1080,22 @@ async function syncAccountCache(
   );
   const allSections = sectionsByNotebook
     .flat()
+    .filter(({ sec }) => matchesFilter(sec.name, filter?.section))
     .toSorted((a, b) => (a.sec.size ?? 0) - (b.sec.size ?? 0));
 
   let downloaded = 0;
   let skipped = 0;
   let retagged = 0;
   const total = allSections.length;
+  if (total === 0 && filter?.section) {
+    const msg = `No section matches --section=${filter.section} in the selected notebooks.`;
+    log(msg);
+    emit?.({ type: "hint", text: msg });
+    return;
+  }
+  if (!filter?.section && total > 20) {
+    emit?.({ type: "hint", text: `${total} sections — limit with --section=<name>` });
+  }
   log(`${total} sections across ${notebooks.length} notebooks`);
   emit?.({ type: "total", total, notebooks: notebooks.length });
 

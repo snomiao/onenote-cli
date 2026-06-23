@@ -648,10 +648,19 @@ yargs(hideBin(process.argv))
   .command(
     "sync",
     "Download and cache all OneNote sections for local search",
-    () => {},
-    async () => {
+    (y) =>
+      y
+        .option("account", { type: "string", alias: "a", describe: "Limit to accounts matching this email (substring)" })
+        .option("notebook", { type: "string", alias: "n", describe: "Limit to notebooks matching this name (substring)" })
+        .option("section", { type: "string", alias: "s", describe: "Limit to sections matching this name (substring)" }),
+    async (argv) => {
+      const filter = {
+        account: argv.account as string | undefined,
+        notebook: argv.notebook as string | undefined,
+        section: argv.section as string | undefined,
+      };
       const { runSyncUI } = await import("./sync-ui");
-      await runSyncUI((emit) => syncCache(() => {}, emit));
+      await runSyncUI((emit) => syncCache(() => {}, emit, filter));
     }
   )
 
