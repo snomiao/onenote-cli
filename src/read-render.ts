@@ -405,6 +405,22 @@ export async function renderHtmlForRead(
     return `\n\n[${label}](${target})\n\n`;
   });
 
+  // Convert <a href> links to markdown. Mask each as a placeholder so its URL
+  // (which may contain parens/spaces and thus need <angle-bracket> form) is not
+  // eaten by the final tag-strip below; restored at the very end.
+  const linkMark = String.fromCharCode(0xe001);
+  const linkSlots: { text: string; url: string }[] = [];
+  rendered = rendered.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, (whole) => {
+    const open = whole.match(/<a\b[^>]*>/i)?.[0] ?? "";
+    const href = extractAttr(open, "href");
+    const inner = whole.replace(/^<a\b[^>]*>/i, "").replace(/<\/a>\s*$/i, "");
+    const text = decodeHtmlEntities(inner.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+    if (!href) return text;
+    const idx = linkSlots.length;
+    linkSlots.push({ text, url: decodeHtmlEntities(href).trim() });
+    return `${linkMark}${idx}${linkMark}`;
+  });
+
   rendered = replaceTopLevelTables(rendered);
 
   const text = decodeHtmlEntities(
@@ -425,12 +441,23 @@ export async function renderHtmlForRead(
   // OneNote's HTML is pretty-printed with tab indentation; once tags are gone
   // that inter-tag whitespace survives as leading tabs and blank-but-not-empty
   // lines. Trim each line and collapse blank runs to keep the output readable.
-  return text
+  const collapsed = text
     .split("\n")
     .map((line) => line.replace(/^[ \t]+/, "").replace(/\s+$/, ""))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  // Restore masked links as markdown. URLs with parens/whitespace use the
+  // <angle-bracket> form so they don't terminate the link early.
+  const linkRe = new RegExp(`${linkMark}(\\d+)${linkMark}`, "g");
+  return collapsed.replace(linkRe, (_, n: string) => {
+    const slot = linkSlots[Number(n)];
+    if (!slot) return "";
+    const label = escapeMarkdownText(slot.text || slot.url);
+    const url = /[()\s]/.test(slot.url) ? `<${slot.url}>` : slot.url;
+    return `[${label}](${url})`;
+  });
 }
 
 /**
