@@ -115,6 +115,7 @@ Details:
 - **Frontmatter** — every Markdown file gets YAML frontmatter with `title`, `source` (the original OneNote URL), `notebook`/`section` (when known), and `exported` date. HTML exports get the same as `<meta name="onenote-*">` tags.
 - **Media** — downloaded next to each file, into `./assets` by default (safe to share across pages — assets are content-addressed, so no clashes). Override with `--assets-dir <dir>`. Links are rewritten to local relative paths, so folders are portable.
 - **`[date]`** in the output path expands to today's date (`YYYY-MM-DD`).
+- **Large libraries** — notebook/section-group exports normally enumerate via the OneNote API. When a OneDrive library exceeds the Graph API's 5,000-item limit, export automatically falls back to walking the OneDrive file tree (`.one` files → sections, subfolders → section groups), so even huge accounts export fully.
 
 ```
 # One page → Markdown + ./assets next to it

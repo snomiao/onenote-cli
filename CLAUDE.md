@@ -12,7 +12,7 @@
 - `onenote notebooks list/get/create` — notebook management
 - `onenote sections list/get/create` — section management
 - `onenote pages list/get/content/create/delete` — page management
-- `onenote export <ref> <output>` — export a page (→ `.md`/`.html` file) or a section/section group/notebook (→ directory tree, one file per page named by sanitized title). Markdown gets YAML frontmatter (`title`/`source`/`notebook`/`section`/`exported`); HTML gets `<meta name="onenote-*">`. Media default to `./assets` next to each file (content-addressed, safe to share), override with `--assets-dir`; `--format md|html`; `[date]` token expands to today. Format for a page is inferred from extension, for directories defaults to md.
+- `onenote export <ref> <output>` — export a page (→ `.md`/`.html` file) or a section/section group/notebook (→ directory tree, one file per page named by sanitized title). Markdown gets YAML frontmatter (`title`/`source`/`notebook`/`section`/`exported`); HTML gets `<meta name="onenote-*">`. Media default to `./assets` next to each file (content-addressed, safe to share), override with `--assets-dir`; `--format md|html`; `[date]` token expands to today. Format for a page is inferred from extension, for directories defaults to md. Notebook/section-group enumeration uses the OneNote API, falling back to OneDrive drive-walking (`.one`→section via sourcedoc GUID, subfolder→section group) when the library exceeds the Graph 5,000-item limit.
 - `onenote sync` — download and cache all sections for local search
 - `onenote search <query>` — full-text page-level search (local cache)
 - `onenote search <query> --online` — online section-level search (Graph API)

@@ -185,15 +185,14 @@ async function writePageFile(
   ctx.log?.(`  ${filePath}`);
 }
 
-/** Export a section's pages into `dir` (one file per page, named by title). */
-async function exportSection(
+/** Write an already-listed set of pages into `dir` (one file per page, by title). */
+async function writeSectionPages(
   base: string,
-  sectionId: string,
+  pages: { id: string; title: string; webUrl?: string }[],
   dir: string,
   ctx: Ctx,
   crumbs: { notebook?: string; section?: string }
 ): Promise<void> {
-  const pages = await graph.listSectionPages(base, sectionId);
   ctx.log?.(`${crumbs.section ?? "section"}: ${pages.length} page(s) -> ${dir}`);
   await mkdir(dir, { recursive: true });
 
@@ -208,6 +207,42 @@ async function exportSection(
   await mapPool(planned, 5, ({ page, filePath }) => writePageFile(base, page, filePath, ctx, crumbs));
 }
 
+/** Export a section (by Graph section id) into `dir`. */
+async function exportSection(
+  base: string,
+  sectionId: string,
+  dir: string,
+  ctx: Ctx,
+  crumbs: { notebook?: string; section?: string }
+): Promise<void> {
+  const pages = await graph.listSectionPages(base, sectionId);
+  await writeSectionPages(base, pages, dir, ctx, crumbs);
+}
+
+/**
+ * Recursively export a notebook/section-group folder via the OneDrive tree.
+ * Used when the OneNote API refuses to enumerate a >5,000-item library.
+ */
+async function exportContainerViaDrive(
+  drivePath: string,
+  dir: string,
+  ctx: Ctx,
+  crumbs: { notebook?: string; section?: string }
+): Promise<void> {
+  const { sections, groups } = await graph.listDriveContainer(drivePath);
+  await mkdir(dir, { recursive: true });
+  const usedDirs = new Set<string>();
+  for (const s of sections) {
+    const subdir = join(dir, uniqueName(sanitizeFilename(s.name, "section"), usedDirs));
+    const pages = await graph.listSectionPagesByGuidAll(s.sectionGuid);
+    await writeSectionPages("/me", pages, subdir, ctx, { ...crumbs, section: s.name });
+  }
+  for (const g of groups) {
+    const subdir = join(dir, uniqueName(sanitizeFilename(g.name, "group"), usedDirs));
+    await exportContainerViaDrive(g.drivePath, subdir, ctx, crumbs);
+  }
+}
+
 /** Recursively export a notebook or section group as a directory tree. */
 async function exportContainer(
   node: graph.ExportNode,
@@ -217,6 +252,7 @@ async function exportContainer(
 ): Promise<void> {
   const parentType = node.kind === "notebook" ? "notebooks" : "sectionGroups";
   const nextCrumbs = node.kind === "notebook" ? { ...crumbs, notebook: node.title } : crumbs;
+  const drivePath = "drivePath" in node ? node.drivePath : undefined;
   await mkdir(dir, { recursive: true });
 
   let sections: { id: string; displayName: string }[];
@@ -229,10 +265,17 @@ async function exportContainer(
   } catch (err: any) {
     const over5000 =
       err?.statusCode === 403 && /5,?000 OneNote items|document librar/i.test(err?.message ?? "");
+    if (over5000 && drivePath) {
+      // Library too large for the OneNote API — enumerate via the OneDrive tree.
+      ctx.log?.(
+        `(library exceeds Graph 5,000-item limit — enumerating "${node.title}" via OneDrive)`
+      );
+      return exportContainerViaDrive(drivePath, dir, ctx, nextCrumbs);
+    }
     if (over5000) {
       throw new Error(
         `Cannot enumerate the ${node.kind} "${node.title}": this OneDrive library exceeds the ` +
-          `Graph API's 5,000-OneNote-item limit, so its section list can't be queried. ` +
+          `Graph API's 5,000-OneNote-item limit and its OneDrive path could not be resolved. ` +
           `Export sections individually instead — pass a section URL or path to 'onenote export'.`
       );
     }

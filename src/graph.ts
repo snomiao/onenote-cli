@@ -545,7 +545,6 @@ function unescapeOneNoteName(s: string): string {
 
 function parseOneNoteUrl(url: string): ParsedOneNoteUrl {
   const decoded = decodeURIComponent(url);
-  const guids = decoded.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? [];
   let fileName: string | undefined;
 
   const sourcedocMatch = decoded.match(/sourcedoc=\{?([0-9a-f-]+)\}?/i);
@@ -1234,8 +1233,8 @@ export async function readPageByUrl(url: string) {
 export type ExportNode =
   | { kind: "page"; base: string; id: string; title: string; webUrl?: string }
   | { kind: "section"; base: string; id: string; title: string; webUrl?: string }
-  | { kind: "sectionGroup"; base: string; id: string; title: string }
-  | { kind: "notebook"; base: string; id: string; title: string };
+  | { kind: "sectionGroup"; base: string; id: string; title: string; drivePath?: string }
+  | { kind: "notebook"; base: string; id: string; title: string; drivePath?: string };
 
 /** GET a collection, following @odata.nextLink until exhausted. */
 async function graphListAll(path: string): Promise<any[]> {
@@ -1291,6 +1290,71 @@ export async function fetchPageHtml(base: string, pageId: string): Promise<strin
   return res.text();
 }
 
+// --- Drive-based enumeration (bypasses the Graph 5,000-OneNote-item limit) ---
+// The OneNote /notebooks/{id}/sections endpoint refuses to enumerate libraries
+// with >5,000 items. The OneDrive /drive tree has no such limit, so we walk it:
+// each ".one" file is a section (its Doc.aspx webUrl carries the sourcedoc GUID,
+// which lists pages via /me/onenote/sections/0-{guid}/pages) and each subfolder
+// is a section group.
+
+function sourcedocGuidFromUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  const m = decodeURIComponent(url).match(
+    /sourcedoc=\{?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\}?/i
+  );
+  return m?.[1]?.toLowerCase();
+}
+
+export type DriveSection = { name: string; sectionGuid: string };
+export type DriveGroup = { name: string; drivePath: string };
+
+/** Drive path (relative to the personal OneDrive root) for a notebook node. */
+export async function notebookDrivePath(base: string, notebookId: string): Promise<string | undefined> {
+  try {
+    const nb = (await (await graphFetch(`${base}/onenote/notebooks/${notebookId}`)).json()) as any;
+    return getNotebookDrivePath(nb) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** List a notebook/section-group folder's sections (.one) and child groups (folders). */
+export async function listDriveContainer(
+  drivePath: string
+): Promise<{ sections: DriveSection[]; groups: DriveGroup[] }> {
+  const encoded = drivePath.split("/").map((s) => encodeURIComponent(s)).join("/");
+  const items = await graphListAll(
+    `/me/drive/root:/${encoded}:/children?$select=name,file,folder,webUrl&$top=200`
+  );
+  const sections: DriveSection[] = [];
+  const groups: DriveGroup[] = [];
+  for (const it of items) {
+    const name: string = it.name ?? "";
+    if (it.folder) {
+      if (/^OneNote_/i.test(name) || name === "deletePending") continue; // internal folders
+      groups.push({ name, drivePath: `${drivePath}/${name}` });
+    } else if (it.file && /\.one$/i.test(name)) {
+      const sectionGuid = sourcedocGuidFromUrl(it.webUrl);
+      if (sectionGuid) sections.push({ name: name.replace(/\.one$/i, ""), sectionGuid });
+    }
+  }
+  return { sections, groups };
+}
+
+/** List all pages of a section by its sourcedoc GUID (works past the 5,000 limit). */
+export async function listSectionPagesByGuidAll(
+  sectionGuid: string
+): Promise<{ id: string; title: string; webUrl?: string }[]> {
+  const pages = await graphListAll(
+    `/me/onenote/sections/0-${sectionGuid}/pages?$select=id,title,links&$top=100`
+  );
+  return pages.map((p: any) => ({
+    id: p.id,
+    title: p.title ?? "",
+    webUrl: p.links?.oneNoteWebUrl?.href,
+  }));
+}
+
 /** Resolve any ref (path, page ID, or OneNote URL) to an exportable node. */
 export async function resolveExportNode(ref: string): Promise<ExportNode> {
   // --- Non-URL: page ID or path ---
@@ -1304,7 +1368,15 @@ export async function resolveExportNode(ref: string): Promise<ExportNode> {
     const r = await resolveByPath(ref);
     if (r.pageId) return { kind: "page", base: r.apiBase, id: r.pageId, title: r.pageTitle ?? "" };
     if (r.sectionId) return { kind: "section", base: r.apiBase, id: r.sectionId, title: r.sectionName ?? "" };
-    if (r.notebookId) return { kind: "notebook", base: r.apiBase, id: r.notebookId, title: r.notebookName ?? "" };
+    if (r.notebookId) {
+      return {
+        kind: "notebook",
+        base: r.apiBase,
+        id: r.notebookId,
+        title: r.notebookName ?? "",
+        drivePath: await notebookDrivePath(r.apiBase, r.notebookId),
+      };
+    }
     throw new Error(`Could not resolve '${ref}' to a notebook, section, or page.`);
   }
 
@@ -1341,7 +1413,15 @@ export async function resolveExportNode(ref: string): Promise<ExportNode> {
     }
     if (parsed.notebookName) {
       const nb = await resolveSharePointNotebook(siteId, parsed.notebookName);
-      if (nb) return { kind: "notebook", base, id: nb.id, title: nb.displayName };
+      if (nb) {
+        return {
+          kind: "notebook",
+          base,
+          id: nb.id,
+          title: nb.displayName,
+          drivePath: await notebookDrivePath(base, nb.id),
+        };
+      }
     }
   }
 
@@ -1355,7 +1435,13 @@ export async function resolveExportNode(ref: string): Promise<ExportNode> {
     };
   }
   if (parsed.notebookId) {
-    return { kind: "notebook", base: "/me", id: parsed.notebookId, title: parsed.notebookName ?? "Notebook" };
+    return {
+      kind: "notebook",
+      base: "/me",
+      id: parsed.notebookId,
+      title: parsed.notebookName ?? "Notebook",
+      drivePath: await notebookDrivePath("/me", parsed.notebookId),
+    };
   }
 
   throw new Error(`Could not resolve '${ref}' to a notebook, section, or page.`);
