@@ -646,35 +646,41 @@ yargs(hideBin(process.argv))
 
   // --- export ---
   .command(
-    "export <url> <output>",
-    "Export a OneNote page to a Markdown (.md) or HTML (.html) file, with media",
+    "export <ref> <output>",
+    "Export a page (to a .md/.html file) or a section/section group/notebook (to a directory), with media",
     (y) =>
       y
-        .positional("url", { type: "string", demandOption: true, describe: "OneNote page path, ID, or URL" })
+        .positional("ref", { type: "string", demandOption: true, describe: "OneNote page/section/notebook path, ID, or URL" })
         .positional("output", {
           type: "string",
           demandOption: true,
-          describe: "Output file (.md or .html). [date] expands to today's date (YYYY-MM-DD).",
+          describe: "Output file (page) or directory (section/notebook). [date] expands to today (YYYY-MM-DD).",
         })
         .option("assets-dir", {
           type: "string",
-          describe: "Directory for downloaded media (default: <output-dir>/assets)",
+          describe: "Directory for downloaded media (default: alongside each file, in ./assets)",
         })
         .option("format", {
           type: "string",
           choices: ["md", "html"],
-          describe: "Override output format (default: inferred from output extension)",
+          describe: "Output format (default: page → from extension; directory → md)",
         }),
     async (argv) => {
-      const url = normalizeRef(argv.url as string)!;
-      const { exportPage } = await import("./export");
-      const res = await exportPage(url, argv.output as string, {
+      const ref = normalizeRef(argv.ref as string)!;
+      const { exportRef } = await import("./export");
+      const res = await exportRef(ref, argv.output as string, {
         assetsDir: argv["assets-dir"] as string | undefined,
         format: argv.format as string | undefined,
+        log: (msg) => console.error(dim(msg)),
       });
-      console.log(green(`Exported ${res.format.toUpperCase()}: ${res.outputPath}`));
-      console.log(dim(`Title: ${res.title}`));
-      console.log(dim(`Media: ${res.assetCount} file(s) in ${res.assetDir}`));
+      if (res.kind === "page") {
+        console.log(green(`Exported ${res.format.toUpperCase()}: ${res.rootPath}`));
+        console.log(dim(`Title: ${res.title}`));
+      } else {
+        console.log(green(`Exported ${res.kind} "${res.title}" → ${res.rootPath}`));
+        console.log(dim(`Pages: ${res.pageCount} ${res.format.toUpperCase()} file(s)`));
+      }
+      console.log(dim(`Media: ${res.assetCount} file(s)`));
     }
   )
 

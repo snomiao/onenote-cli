@@ -1225,3 +1225,138 @@ export async function readPageByUrl(url: string) {
   const result = await readOneNoteUrl(url);
   return { title: result.title, html: result.html ?? "", text: result.content, pageUrl: result.pageUrl ?? url };
 }
+
+// --- Export traversal ---
+// A `base` is the Graph endpoint prefix a node lives under, e.g. "/me" for a
+// consumer account or "/sites/{siteId}" for a SharePoint/business notebook.
+// All export traversal below is base-relative so one code path serves both.
+
+export type ExportNode =
+  | { kind: "page"; base: string; id: string; title: string; webUrl?: string }
+  | { kind: "section"; base: string; id: string; title: string; webUrl?: string }
+  | { kind: "sectionGroup"; base: string; id: string; title: string }
+  | { kind: "notebook"; base: string; id: string; title: string };
+
+/** GET a collection, following @odata.nextLink until exhausted. */
+async function graphListAll(path: string): Promise<any[]> {
+  const out: any[] = [];
+  let next: string | null = path;
+  while (next) {
+    const res = await graphFetch(next);
+    const data: GraphResponse<any> = await res.json();
+    out.push(...(data.value ?? []));
+    next = (data["@odata.nextLink"] as string) ?? null;
+  }
+  return out;
+}
+
+export async function listSectionPages(
+  base: string,
+  sectionId: string
+): Promise<{ id: string; title: string; webUrl?: string }[]> {
+  const pages = await graphListAll(
+    `${base}/onenote/sections/${sectionId}/pages?$select=id,title,links&$top=100&$orderby=order`
+  );
+  return pages.map((p: any) => ({
+    id: p.id,
+    title: p.title ?? "",
+    webUrl: p.links?.oneNoteWebUrl?.href,
+  }));
+}
+
+export async function listChildSections(
+  base: string,
+  parentType: "notebooks" | "sectionGroups",
+  parentId: string
+): Promise<{ id: string; displayName: string }[]> {
+  const secs = await graphListAll(
+    `${base}/onenote/${parentType}/${parentId}/sections?$select=id,displayName&$top=100`
+  );
+  return secs.map((s: any) => ({ id: s.id, displayName: s.displayName ?? "" }));
+}
+
+export async function listChildSectionGroups(
+  base: string,
+  parentType: "notebooks" | "sectionGroups",
+  parentId: string
+): Promise<{ id: string; displayName: string }[]> {
+  const groups = await graphListAll(
+    `${base}/onenote/${parentType}/${parentId}/sectionGroups?$select=id,displayName&$top=100`
+  );
+  return groups.map((g: any) => ({ id: g.id, displayName: g.displayName ?? "" }));
+}
+
+export async function fetchPageHtml(base: string, pageId: string): Promise<string> {
+  const res = await graphFetch(`${base}/onenote/pages/${encodeURIComponent(pageId)}/content`);
+  return res.text();
+}
+
+/** Resolve any ref (path, page ID, or OneNote URL) to an exportable node. */
+export async function resolveExportNode(ref: string): Promise<ExportNode> {
+  // --- Non-URL: page ID or path ---
+  if (!/^https?:\/\//i.test(ref)) {
+    if (!ref.includes("/") && ref.includes("!")) {
+      // Page IDs contain "!". Section/notebook IDs are ambiguous, so only
+      // page IDs are resolved directly; everything else goes through paths.
+      const r = await resolvePageRef(ref);
+      return { kind: "page", base: r.apiBase, id: r.pageId, title: r.title ?? "", webUrl: r.webUrl };
+    }
+    const r = await resolveByPath(ref);
+    if (r.pageId) return { kind: "page", base: r.apiBase, id: r.pageId, title: r.pageTitle ?? "" };
+    if (r.sectionId) return { kind: "section", base: r.apiBase, id: r.sectionId, title: r.sectionName ?? "" };
+    if (r.notebookId) return { kind: "notebook", base: r.apiBase, id: r.notebookId, title: r.notebookName ?? "" };
+    throw new Error(`Could not resolve '${ref}' to a notebook, section, or page.`);
+  }
+
+  // --- URL ---
+  const parsed = parseOneNoteUrl(ref);
+  if (parsed.siteRef) {
+    const siteId = await resolveSiteId(parsed.siteRef);
+    const base = `/sites/${siteId}`;
+    if (parsed.graphPageId) {
+      let title = "";
+      let webUrl: string | undefined;
+      try {
+        const m = (await (await graphFetch(
+          `${base}/onenote/pages/${encodeURIComponent(parsed.graphPageId)}?$select=id,title,links`
+        )).json()) as any;
+        title = m.title ?? "";
+        webUrl = m.links?.oneNoteWebUrl?.href;
+      } catch {}
+      return { kind: "page", base, id: parsed.graphPageId, title, webUrl };
+    }
+    if (parsed.graphSectionId) {
+      let title = parsed.sectionName ?? "Section";
+      try {
+        const s = (await (await graphFetch(
+          `${base}/onenote/sections/${parsed.graphSectionId}?$select=displayName`
+        )).json()) as any;
+        title = s.displayName ?? title;
+      } catch {}
+      return { kind: "section", base, id: parsed.graphSectionId, title };
+    }
+    if (parsed.sectionName) {
+      const section = await resolveSharePointSection(siteId, parsed.sectionName, parsed.sectionGuid);
+      if (section) return { kind: "section", base, id: section.id, title: section.displayName };
+    }
+    if (parsed.notebookName) {
+      const nb = await resolveSharePointNotebook(siteId, parsed.notebookName);
+      if (nb) return { kind: "notebook", base, id: nb.id, title: nb.displayName };
+    }
+  }
+
+  // --- Consumer (/me) fallbacks ---
+  if (parsed.sectionGuid) {
+    return {
+      kind: "section",
+      base: "/me",
+      id: `0-${parsed.sectionGuid}`,
+      title: parsed.sectionName ?? parsed.fileName ?? "Section",
+    };
+  }
+  if (parsed.notebookId) {
+    return { kind: "notebook", base: "/me", id: parsed.notebookId, title: parsed.notebookName ?? "Notebook" };
+  }
+
+  throw new Error(`Could not resolve '${ref}' to a notebook, section, or page.`);
+}

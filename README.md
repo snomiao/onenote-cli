@@ -71,9 +71,10 @@ onenote pages delete <ref> --sha <4-char>
 # Top-level shortcuts
 onenote ls [<path>]                           # auto: notebooks / sections / pages
 onenote read <ref>                            # render page (or list section/notebook)
-onenote export <ref> <out.md>                 # export a page to Markdown + downloaded media
-onenote export <ref> <out.html>               # export as HTML (format inferred from extension)
-onenote export <ref> './[date]-note/page.md' --assets-dir ./media
+onenote export <page-ref> <out.md>            # export a page to Markdown + downloaded media
+onenote export <page-ref> <out.html>          # export as HTML (format inferred from extension)
+onenote export <section-ref> <dir>            # dump a section to a folder (one .md per page)
+onenote export <notebook-ref> <dir>           # dump a whole notebook as a directory tree
 onenote open <ref>                            # open in browser
 onenote rename <ref> <new-name>               # rename (depth inferred)
 onenote rm <ref>                              # dry-run: prints content + sha
@@ -98,24 +99,39 @@ If preserving exact formatting matters, edit the page directly in OneNote Online
 onenote export <ref> <output>
 ```
 
-Exports a single page to a self-contained file plus its media:
+Exports a **page**, **section**, **section group**, or **whole notebook** to local files plus their media. What `<ref>` resolves to decides the shape:
 
-- **Format is inferred from the output extension** — `.html`/`.htm` → HTML, anything else → Markdown. Override with `--format md|html`.
-- **Media is downloaded next to the output**, into `<output-dir>/assets` by default. Override with `--assets-dir <dir>`. Links in the exported file are rewritten to point at the local copies, relative to the output file — so the folder is portable.
-- **`[date]` in the path** expands to today's date (`YYYY-MM-DD`).
+| `<ref>` resolves to | `<output>` | Result |
+| --- | --- | --- |
+| page | a file (`.md`/`.html`) | one file |
+| page | a directory | `<dir>/<page-title>.md` |
+| section | a directory | one file per page |
+| section group / notebook | a directory | a directory tree mirroring the structure, one file per page |
+
+Details:
+
+- **Format** — for a single page it's inferred from the output extension (`.html`/`.htm` → HTML, else Markdown). For directory exports it defaults to Markdown; use `--format md|html`.
+- **Filenames** — pages are named by their sanitized title (Unicode preserved; only filesystem-illegal characters are stripped). Collisions get ` (2)`, ` (3)`… suffixes.
+- **Frontmatter** — every Markdown file gets YAML frontmatter with `title`, `source` (the original OneNote URL), `notebook`/`section` (when known), and `exported` date. HTML exports get the same as `<meta name="onenote-*">` tags.
+- **Media** — downloaded next to each file, into `./assets` by default (safe to share across pages — assets are content-addressed, so no clashes). Override with `--assets-dir <dir>`. Links are rewritten to local relative paths, so folders are portable.
+- **`[date]`** in the output path expands to today's date (`YYYY-MM-DD`).
 
 ```
-# Markdown + ./assets/*.jpg next to page.md
-onenote export "<onenote-url>" './[date]-my-page/page.md'
+# One page → Markdown + ./assets next to it
+onenote export "<page-url>" './[date]-my-page/page.md'
 
-# HTML export (all image/attachment refs rewritten to local files)
+# One page → HTML
 onenote export NotebookA/SectionB/PageC ./out/page.html
 
-# Custom media directory
-onenote export <ref> ./out/note.md --assets-dir ./out/media
-```
+# A whole section → a folder of Markdown files (one per page)
+onenote export "<section-url>" ./out/my-section
 
-`export` operates on a single page; pass a page ref (path, ID, or a OneNote page URL). Section/notebook refs are rejected with a hint.
+# A whole notebook → a directory tree of sections/section groups
+onenote export NotebookA ./backup/NotebookA
+
+# Shared media directory + HTML
+onenote export NotebookA ./backup --format html --assets-dir ./backup/media
+```
 
 ### Search Example
 
