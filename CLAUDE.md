@@ -12,6 +12,7 @@
 - `onenote notebooks list/get/create` — notebook management
 - `onenote sections list/get/create` — section management
 - `onenote pages list/get/content/create/delete` — page management
+- `onenote export <url> <out.md|out.html>` — export a page to Markdown/HTML + local media (format from ext; media default to `<out-dir>/assets`, override with `--assets-dir`; `[date]` token in path expands to today)
 - `onenote sync` — download and cache all sections for local search
 - `onenote search <query>` — full-text page-level search (local cache)
 - `onenote search <query> --online` — online section-level search (Graph API)

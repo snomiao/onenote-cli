@@ -13,6 +13,15 @@ type ResourceReference = {
   mediaType?: string;
 };
 
+export type RenderOptions = {
+  /** When false, resources are not downloaded and links keep their remote URL. */
+  downloadAssets?: boolean;
+  /** Directory to write downloaded media into (default: package .onenote/assets). */
+  assetDir?: string;
+  /** Directory that emitted relative links are computed from (default: cwd). */
+  linkBaseDir?: string;
+};
+
 function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&nbsp;/g, " ")
@@ -51,8 +60,8 @@ function sanitizeStem(text: string): string {
     .slice(0, 120);
 }
 
-function toDisplayPath(path: string): string {
-  const rel = relative(process.cwd(), path).split(sep).join("/");
+function toDisplayPath(path: string, baseDir: string = process.cwd()): string {
+  const rel = relative(baseDir, path).split(sep).join("/");
   if (!rel || rel === "") return ".";
   if (rel.startsWith("../") || rel.startsWith("./")) return rel;
   if (rel.startsWith(".")) return `./${rel}`;
@@ -162,9 +171,12 @@ function normalizeOneNoteResourceUrl(resourceUrl: string): string {
 
 export async function cacheOneNoteResource(
   resourceUrl: string,
-  mediaTypeHint?: string
+  mediaTypeHint?: string,
+  opts?: { assetDir?: string; linkBaseDir?: string }
 ): Promise<{ absolutePath: string; displayPath: string; mediaType: string }> {
-  await mkdir(READ_ASSET_DIR, { recursive: true });
+  const assetDir = opts?.assetDir ?? READ_ASSET_DIR;
+  const baseDir = opts?.linkBaseDir;
+  await mkdir(assetDir, { recursive: true });
 
   const canonicalUrl = normalizeOneNoteResourceUrl(resourceUrl);
   const resourceId = getResourceId(canonicalUrl);
@@ -172,11 +184,11 @@ export async function cacheOneNoteResource(
   const baseName = sanitizeStem(`${resourceId}-${hash}`) || hash;
   let mediaType = mediaTypeHint ?? "";
   let ext = extensionFromMediaType(mediaTypeHint);
-  let absolutePath = join(READ_ASSET_DIR, `${baseName}.${ext}`);
+  let absolutePath = join(assetDir, `${baseName}.${ext}`);
 
   try {
     await stat(absolutePath);
-    return { absolutePath, displayPath: toDisplayPath(absolutePath), mediaType };
+    return { absolutePath, displayPath: toDisplayPath(absolutePath, baseDir), mediaType };
   } catch {}
 
   const res = await fetchAuthed(resourceUrl);
@@ -189,15 +201,15 @@ export async function cacheOneNoteResource(
     || headerMediaType
     || "application/octet-stream";
   ext = extensionFromMediaType(mediaType);
-  absolutePath = join(READ_ASSET_DIR, `${baseName}.${ext}`);
+  absolutePath = join(assetDir, `${baseName}.${ext}`);
 
   try {
     await stat(absolutePath);
-    return { absolutePath, displayPath: toDisplayPath(absolutePath), mediaType };
+    return { absolutePath, displayPath: toDisplayPath(absolutePath, baseDir), mediaType };
   } catch {}
 
   await writeFile(absolutePath, buf);
-  return { absolutePath, displayPath: toDisplayPath(absolutePath), mediaType };
+  return { absolutePath, displayPath: toDisplayPath(absolutePath, baseDir), mediaType };
 }
 
 function normalizeResourceReferences(html: string): ResourceReference[] {
@@ -223,7 +235,10 @@ function normalizeResourceReferences(html: string): ResourceReference[] {
   });
 }
 
-async function resolveResourceTargets(html: string) {
+async function resolveResourceTargets(
+  html: string,
+  opts?: { assetDir?: string; linkBaseDir?: string }
+) {
   const refs = normalizeResourceReferences(html);
   const byUrl = new Map<string, { displayPath: string; mediaType?: string }>();
 
@@ -235,7 +250,7 @@ async function resolveResourceTargets(html: string) {
         return;
       }
       try {
-        const cached = await cacheOneNoteResource(ref.url, ref.mediaType);
+        const cached = await cacheOneNoteResource(ref.url, ref.mediaType, opts);
         byUrl.set(ref.url, { displayPath: cached.displayPath, mediaType: cached.mediaType });
       } catch {
         byUrl.set(ref.url, { displayPath: ref.url, mediaType: ref.mediaType });
@@ -364,11 +379,11 @@ function replaceTopLevelTables(html: string): string {
 
 export async function renderHtmlForRead(
   html: string,
-  options?: { downloadAssets?: boolean }
+  options?: RenderOptions
 ): Promise<string> {
   const replacements = options?.downloadAssets === false
     ? new Map<string, { displayPath: string; mediaType?: string }>()
-    : await resolveResourceTargets(html);
+    : await resolveResourceTargets(html, options);
 
   // Convert <img>/<object> to markdown BEFORE table rendering so assets inside
   // table cells survive stripTagsInline() during cell flattening.
@@ -416,6 +431,43 @@ export async function renderHtmlForRead(
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/**
+ * Rewrite a page's HTML so that OneNote resource references (img/object) point
+ * at locally-downloaded copies. Returns the (still complete) HTML document with
+ * remote resource URLs replaced by relative paths, for `onenote export *.html`.
+ */
+export async function renderHtmlForExport(
+  html: string,
+  opts?: { assetDir?: string; linkBaseDir?: string }
+): Promise<string> {
+  const replacements = await resolveResourceTargets(html, opts);
+  const localFor = (u?: string) => (u ? replacements.get(u)?.displayPath : undefined);
+  const swapAttr = (tag: string, from: string | undefined, to: string): string => {
+    if (!from) return tag;
+    return tag.replace(`"${from}"`, `"${to}"`).replace(`'${from}'`, `'${to}'`);
+  };
+
+  let out = html.replace(/<img\b[^>]*>/gi, (tag) => {
+    const full = extractAttr(tag, "data-fullres-src");
+    const src = extractAttr(tag, "src");
+    const target = localFor(full ?? src);
+    if (!target) return tag;
+    let t = tag;
+    if (src) t = swapAttr(t, src, target);
+    else t = t.replace(/<img\b/i, `<img src="${target}"`);
+    if (full) t = swapAttr(t, full, target);
+    return t;
+  });
+
+  out = out.replace(/<object\b[^>]*>/gi, (tag) => {
+    const data = extractAttr(tag, "data");
+    const target = localFor(data);
+    return target ? swapAttr(tag, data, target) : tag;
+  });
+
+  return out;
 }
 
 export async function renderResourceForRead(resourceUrl: string): Promise<{

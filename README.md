@@ -71,6 +71,9 @@ onenote pages delete <ref> --sha <4-char>
 # Top-level shortcuts
 onenote ls [<path>]                           # auto: notebooks / sections / pages
 onenote read <ref>                            # render page (or list section/notebook)
+onenote export <ref> <out.md>                 # export a page to Markdown + downloaded media
+onenote export <ref> <out.html>               # export as HTML (format inferred from extension)
+onenote export <ref> './[date]-note/page.md' --assets-dir ./media
 onenote open <ref>                            # open in browser
 onenote rename <ref> <new-name>               # rename (depth inferred)
 onenote rm <ref>                              # dry-run: prints content + sha
@@ -88,6 +91,31 @@ onenote search <query> -o   # Online section-level search (Graph API)
 `pages append` uses the Microsoft Graph OneNote PATCH API (`action: "append"`). This is safe — it never deletes existing content — but the Graph API re-parses the entire page on the server side, which can normalize or strip custom fonts, indentation, and other formatting from **existing** content. New content is added correctly.
 
 If preserving exact formatting matters, edit the page directly in OneNote Online or the desktop app.
+
+### Export
+
+```
+onenote export <ref> <output>
+```
+
+Exports a single page to a self-contained file plus its media:
+
+- **Format is inferred from the output extension** — `.html`/`.htm` → HTML, anything else → Markdown. Override with `--format md|html`.
+- **Media is downloaded next to the output**, into `<output-dir>/assets` by default. Override with `--assets-dir <dir>`. Links in the exported file are rewritten to point at the local copies, relative to the output file — so the folder is portable.
+- **`[date]` in the path** expands to today's date (`YYYY-MM-DD`).
+
+```
+# Markdown + ./assets/*.jpg next to page.md
+onenote export "<onenote-url>" './[date]-my-page/page.md'
+
+# HTML export (all image/attachment refs rewritten to local files)
+onenote export NotebookA/SectionB/PageC ./out/page.html
+
+# Custom media directory
+onenote export <ref> ./out/note.md --assets-dir ./out/media
+```
+
+`export` operates on a single page; pass a page ref (path, ID, or a OneNote page URL). Section/notebook refs are rejected with a hint.
 
 ### Search Example
 
@@ -115,6 +143,7 @@ For architecture, permissions, and internals see [docs/](docs/).
 - Full-text page-level search with context snippets
 - Incremental local cache, works on huge libraries
 - Markdown-in / markdown-out for reads and writes
+- Export a page to Markdown or HTML with all media downloaded locally
 - Clickable links in the terminal
 - Installable as an AI agent skill
 
@@ -131,7 +160,7 @@ Make onenote-cli the standard way AI accesses OneNote.
 
 Own your data. Never locked in.
 
-- **`onenote export`** — convert pages to Markdown (preserves images, code blocks, tables, math).
+- ✅ **`onenote export`** — convert a page to Markdown or HTML with media downloaded to a local assets folder. _(shipped)_
 - **`onenote import <dir>`** — ingest Markdown directory tree as notebook.
 - **`onenote backup --incremental`** — daily diff-based snapshots.
 - **Obsidian / Notion bridges** — `--format obsidian` preserves `[[wiki-links]]`.

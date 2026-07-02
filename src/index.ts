@@ -644,6 +644,40 @@ yargs(hideBin(process.argv))
     }
   )
 
+  // --- export ---
+  .command(
+    "export <url> <output>",
+    "Export a OneNote page to a Markdown (.md) or HTML (.html) file, with media",
+    (y) =>
+      y
+        .positional("url", { type: "string", demandOption: true, describe: "OneNote page path, ID, or URL" })
+        .positional("output", {
+          type: "string",
+          demandOption: true,
+          describe: "Output file (.md or .html). [date] expands to today's date (YYYY-MM-DD).",
+        })
+        .option("assets-dir", {
+          type: "string",
+          describe: "Directory for downloaded media (default: <output-dir>/assets)",
+        })
+        .option("format", {
+          type: "string",
+          choices: ["md", "html"],
+          describe: "Override output format (default: inferred from output extension)",
+        }),
+    async (argv) => {
+      const url = normalizeRef(argv.url as string)!;
+      const { exportPage } = await import("./export");
+      const res = await exportPage(url, argv.output as string, {
+        assetsDir: argv["assets-dir"] as string | undefined,
+        format: argv.format as string | undefined,
+      });
+      console.log(green(`Exported ${res.format.toUpperCase()}: ${res.outputPath}`));
+      console.log(dim(`Title: ${res.title}`));
+      console.log(dim(`Media: ${res.assetCount} file(s) in ${res.assetDir}`));
+    }
+  )
+
   // --- sync ---
   .command(
     "sync",

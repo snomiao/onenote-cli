@@ -534,6 +534,9 @@ interface ParsedOneNoteUrl {
   notebookName?: string;   // from direct notebook path basename
   sectionName?: string;    // from wd=target first segment (with .one stripped)
   pageTitle?: string;      // from wd=target second segment (unescaped)
+  // Direct Graph IDs derived from Doc.aspx wd* params (most reliable resolution)
+  graphSectionId?: string; // "1-<wdsectionfileid>"
+  graphPageId?: string;    // "1-<wdpartid-guid-compact>!<rev>-<wdsectionfileid>"
 }
 
 function unescapeOneNoteName(s: string): string {
@@ -592,8 +595,36 @@ function parseOneNoteUrl(url: string): ParsedOneNoteUrl {
       // Second pair's name begins with "/" (segment separator) — strip it.
       pageTitle = unescapeOneNoteName(pairs[1][1].replace(/^\//, ""));
       pageGuid = pairs[1][2].toLowerCase();
-    } else if (pairs.length === 0 && guids.length > 1) {
-      pageGuid = guids[guids.length - 1].toLowerCase();
+    } else if (pairs.length === 0) {
+      // Path-only target, e.g. target(/Home.one/) or target(/Sec.one/Page/).
+      // Segments ending in ".one" name the section; a trailing segment names the page.
+      const segs = target.split("/").map((s) => unescapeOneNoteName(s)).filter(Boolean);
+      const secIdx = segs.findIndex((s) => /\.one$/i.test(s));
+      if (secIdx >= 0) {
+        if (!sectionName) sectionName = segs[secIdx].replace(/\.one$/i, "");
+        if (segs[secIdx + 1] && !pageTitle) pageTitle = segs[secIdx + 1];
+      }
+    }
+  }
+
+  // Doc.aspx wd* params carry the authoritative Graph IDs. `wdsectionfileid`
+  // is the section's file GUID (Graph section id = "1-<guid>"); `wdpartid`
+  // is "{page-object-guid}{revision}" and yields the Graph page id.
+  const wdSectionMatch = decoded.match(
+    /wdsectionfileid=\{?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\}?/i
+  );
+  const wdSectionFileId = wdSectionMatch?.[1]?.toLowerCase();
+  const wdPartMatch = decoded.match(
+    /wdpartid=\{?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\}?\{(\d+)\}/i
+  );
+  let graphSectionId: string | undefined;
+  let graphPageId: string | undefined;
+  if (wdSectionFileId) {
+    graphSectionId = `1-${wdSectionFileId}`;
+    if (wdPartMatch) {
+      const compact = wdPartMatch[1].replace(/-/g, "").toLowerCase();
+      const rev = wdPartMatch[2];
+      graphPageId = `1-${compact}!${rev}-${wdSectionFileId}`;
     }
   }
 
@@ -604,9 +635,11 @@ function parseOneNoteUrl(url: string): ParsedOneNoteUrl {
   const nbMatch = decoded.match(/notebooks\/(1-[0-9a-f-]+)/i);
   const notebookId = nbMatch?.[1];
 
-  const base = { siteRef, fileName, notebookName, sectionName, pageTitle };
-  if (pageGuid && sectionGuid) return { type: "page", sectionGuid, pageGuid, ...base };
-  if (sectionGuid) return { type: "section", sectionGuid, ...base };
+  const base = { siteRef, fileName, notebookName, sectionName, pageTitle, graphSectionId, graphPageId };
+  if (graphPageId || (pageGuid && sectionGuid)) {
+    return { type: "page", sectionGuid, pageGuid, ...base };
+  }
+  if (sectionGuid || graphSectionId) return { type: "section", sectionGuid, ...base };
   if (notebookId || notebookName) return { type: "notebook", notebookId, ...base };
   return { type: "unknown", ...base };
 }
@@ -1032,6 +1065,51 @@ export async function readOneNoteUrl(
   }
 
   const parsed = parseOneNoteUrl(url);
+
+  // --- SharePoint direct-by-ID path: Doc.aspx URLs carry wdsectionfileid /
+  //     wdpartid, which map straight to Graph section/page IDs. Resolving by
+  //     ID avoids name lookups (and the 5000-item limit) entirely.
+  if (parsed.siteRef && (parsed.graphPageId || parsed.graphSectionId)) {
+    try {
+      const siteId = await resolveSiteId(parsed.siteRef);
+      if (parsed.graphPageId) {
+        const pageId = encodeURIComponent(parsed.graphPageId);
+        const contentRes = await graphFetch(`/sites/${siteId}/onenote/pages/${pageId}/content`);
+        const html = await contentRes.text();
+        let title = "(untitled)";
+        let pageUrl: string | undefined;
+        try {
+          const metaRes = await graphFetch(`/sites/${siteId}/onenote/pages/${pageId}?$select=id,title,links`);
+          const meta = (await metaRes.json()) as any;
+          title = meta.title || title;
+          pageUrl = meta.links?.oneNoteWebUrl?.href;
+        } catch {}
+        return {
+          type: "page",
+          title,
+          content: await renderHtmlForRead(html, options),
+          html,
+          pageUrl,
+        };
+      }
+      // Section-level: list pages as a tree.
+      const secRes = await graphFetch(`/sites/${siteId}/onenote/sections/${parsed.graphSectionId}?$select=displayName`);
+      const sec = (await secRes.json()) as any;
+      const pagesRes = await graphFetch(
+        `/sites/${siteId}/onenote/sections/${parsed.graphSectionId}/pages?$select=id,title&$top=100`
+      );
+      const pagesData: GraphResponse<any> = await pagesRes.json();
+      const pageList = pagesData.value ?? [];
+      const tree = pageList.map((p: any, i: number) => `${i + 1}. ${p.title ?? "(untitled)"}`).join("\n");
+      return {
+        type: "section",
+        title: sec.displayName ?? "Section",
+        content: `${sec.displayName ?? "Section"} (${pageList.length} pages)\n\n${tree}`,
+      };
+    } catch (err: any) {
+      if (!is5000LimitError(err) && err?.statusCode !== 404) throw err;
+    }
+  }
 
   // --- SharePoint (business) path: use site-scoped endpoints to bypass
   //     the 5000-OneNote-item limit on /me/onenote/*.
