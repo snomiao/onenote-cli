@@ -52,6 +52,40 @@ function escapeMarkdownText(text: string): string {
   return text.replace(/[[\]\\]/g, "\\$&");
 }
 
+/**
+ * Convert a OneNote client deep-link (`onenote:file.one#title&section-id={..}&
+ * page-id={..}&base-path=https://..`) to the equivalent https OneNote Online URL
+ * (`{base-path}?wd=target(file|section-guid/title|page-guid/)`), which opens in
+ * a browser and is clickable in web Markdown renderers. Returns null if the href
+ * isn't an onenote: link or lacks the pieces needed to build a web URL.
+ */
+function oneNoteHrefToHttp(href: string): string | null {
+  if (!/^onenote:/i.test(href)) return null;
+  const rest = href.replace(/^onenote:/i, "");
+  const hashIdx = rest.indexOf("#");
+  const file = decodeURIComponent(hashIdx >= 0 ? rest.slice(0, hashIdx) : rest);
+  const frag = hashIdx >= 0 ? rest.slice(hashIdx + 1) : "";
+  const params = frag.split("&");
+  const title = decodeURIComponent(params[0] ?? "");
+  const get = (k: string) => {
+    const p = params.find((x) => x.toLowerCase().startsWith(`${k}=`));
+    return p ? p.slice(k.length + 1) : "";
+  };
+  const sectionId = get("section-id").replace(/[{}]/g, "").toLowerCase();
+  const pageId = get("page-id").replace(/[{}]/g, "").toLowerCase();
+  const basePath = get("base-path");
+  if (!basePath || !/^https?:\/\//i.test(basePath) || !file) return null;
+  // OneNote's own web URLs percent-encode the whole target(...) argument,
+  // including parentheses (which encodeURIComponent leaves untouched).
+  const pct = (s: string) =>
+    encodeURIComponent(s).replace(/[()!*'~]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  let inner: string;
+  if (sectionId && pageId) inner = `${file}|${sectionId}/${title}|${pageId}/`;
+  else if (sectionId) inner = `${file}|${sectionId}/`;
+  else return null;
+  return `${basePath}?wd=target${pct(`(${inner})`)}`;
+}
+
 function sanitizeStem(text: string): string {
   return text
     .replace(/[^a-zA-Z0-9._-]+/g, "-")
@@ -416,8 +450,11 @@ export async function renderHtmlForRead(
     const inner = whole.replace(/^<a\b[^>]*>/i, "").replace(/<\/a>\s*$/i, "");
     const text = decodeHtmlEntities(inner.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
     if (!href) return text;
+    const decodedHref = decodeHtmlEntities(href).trim();
+    // Prefer an https OneNote Online URL when the onenote: link carries one.
+    const url = oneNoteHrefToHttp(decodedHref) ?? decodedHref;
     const idx = linkSlots.length;
-    linkSlots.push({ text, url: decodeHtmlEntities(href).trim() });
+    linkSlots.push({ text, url });
     return `${linkMark}${idx}${linkMark}`;
   });
 
