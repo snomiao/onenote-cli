@@ -1290,6 +1290,37 @@ export async function fetchPageHtml(base: string, pageId: string): Promise<strin
   return res.text();
 }
 
+// Re-resolve a possibly-stale link base-path (a notebook web URL) to the
+// notebook's *current* URL by matching its name, so internal links survive a
+// notebook being moved to another folder. Cached (and in-flight deduped) by name.
+const notebookBaseCache = new Map<string, Promise<string | null>>();
+export function currentNotebookBaseUrl(staleBasePath: string): Promise<string | null> {
+  let name = "";
+  try {
+    name = decodeURIComponent(new URL(staleBasePath).pathname).split("/").filter(Boolean).pop() ?? "";
+  } catch {
+    return Promise.resolve(null);
+  }
+  if (!name) return Promise.resolve(null);
+  let pending = notebookBaseCache.get(name);
+  if (!pending) {
+    pending = (async () => {
+      try {
+        const nb = (await getCachedNotebooks()).find((n) => n.displayName === name);
+        if (!nb?.webUrl) return null;
+        const u = new URL(nb.webUrl);
+        u.search = "";
+        u.hash = "";
+        return u.toString();
+      } catch {
+        return null;
+      }
+    })();
+    notebookBaseCache.set(name, pending);
+  }
+  return pending;
+}
+
 // --- Drive-based enumeration (bypasses the Graph 5,000-OneNote-item limit) ---
 // The OneNote /notebooks/{id}/sections endpoint refuses to enumerate libraries
 // with >5,000 items. The OneDrive /drive tree has no such limit, so we walk it:

@@ -1297,6 +1297,32 @@ function buildPageUrl(
   return `${sectionUrl}${separator}wd=${encoded}`;
 }
 
+// Lazily-opened read-only handle for fast page_guid -> web_url lookups, used to
+// re-resolve OneNote internal links to their current URL (surviving notebook
+// moves/renames). Undefined = not yet opened, null = unavailable (no cache).
+let linkLookupDb: Database | null | undefined;
+let linkLookupStmt: ReturnType<Database["query"]> | null = null;
+
+/** Current web URL for a synced page by its page GUID, or null if not cached. */
+export function lookupPageUrlByGuid(guid: string): string | null {
+  if (!guid) return null;
+  try {
+    if (linkLookupDb === undefined) {
+      linkLookupDb = new Database(SEARCH_DB_PATH, { readonly: true });
+      linkLookupStmt = linkLookupDb.query(
+        "SELECT web_url FROM pages WHERE page_guid = ? AND web_url IS NOT NULL LIMIT 1"
+      );
+    }
+    if (!linkLookupStmt) return null;
+    const row = linkLookupStmt.get(guid.toLowerCase()) as { web_url?: string } | null;
+    return row?.web_url ?? null;
+  } catch {
+    linkLookupDb = null;
+    linkLookupStmt = null;
+    return null;
+  }
+}
+
 export async function isCacheEmpty(): Promise<boolean> {
   // Also treat DB as authoritative: if there are any indexed pages, cache is not empty
   try {

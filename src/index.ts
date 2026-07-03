@@ -4,11 +4,27 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as graph from "./graph";
 import { login, logout, logoutAll, whoami, listAccounts } from "./auth";
-import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, SEARCH_DB_PATH, parseTagsFromQuery, TAG_ALIASES } from "./cache";
+import { syncCache, searchLocal, isCacheEmpty, rebuildSearchIndex, SEARCH_DB_PATH, parseTagsFromQuery, TAG_ALIASES, lookupPageUrlByGuid } from "./cache";
 import { stat } from "node:fs/promises";
 import { markdownToHtml } from "./markdown";
+import { setLinkResolver, buildOneNoteWebUrl } from "./read-render";
 
 const isTTY = process.stdout.isTTY ?? false;
+
+// Re-resolve OneNote internal links to their *current* URL before rendering:
+//  1) the local sync cache maps the page GUID → the URL Graph last reported
+//     (survives the notebook being moved or renamed), then
+//  2) fall back to re-resolving just the notebook's base URL by name via Graph.
+// Returning null lets read-render rebuild the URL from the link's own base-path.
+setLinkResolver(async (info) => {
+  const cached = info.pageId ? lookupPageUrlByGuid(info.pageId) : null;
+  if (cached) return cached;
+  const currentBase = await graph.currentNotebookBaseUrl(info.basePath);
+  if (currentBase && currentBase !== info.basePath) {
+    return buildOneNoteWebUrl({ ...info, basePath: currentBase });
+  }
+  return null;
+});
 
 // ANSI color helpers (only when TTY)
 const bold = (s: string) => (isTTY ? `\x1b[1m${s}\x1b[0m` : s);

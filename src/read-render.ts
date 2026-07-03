@@ -52,14 +52,29 @@ function escapeMarkdownText(text: string): string {
   return text.replace(/[[\]\\]/g, "\\$&");
 }
 
+export type OneNoteLinkInfo = {
+  basePath: string; // notebook web URL the link was authored against (may be stale)
+  file: string; // section ".one" filename
+  sectionId: string; // section object GUID
+  pageId: string; // page object GUID
+  title: string; // page title
+};
+
 /**
- * Convert a OneNote client deep-link (`onenote:file.one#title&section-id={..}&
- * page-id={..}&base-path=https://..`) to the equivalent https OneNote Online URL
- * (`{base-path}?wd=target(file|section-guid/title|page-guid/)`), which opens in
- * a browser and is clickable in web Markdown renderers. Returns null if the href
- * isn't an onenote: link or lacks the pieces needed to build a web URL.
+ * A resolver that, given a parsed OneNote link, returns the page's *current*
+ * https URL (e.g. from the local sync cache or a fresh Graph lookup), or null to
+ * fall back to reconstructing it from the link's embedded base-path. Injected by
+ * the CLI so this module stays free of graph/cache dependencies.
  */
-function oneNoteHrefToHttp(href: string): string | null {
+export type LinkResolver = (info: OneNoteLinkInfo) => Promise<string | null>;
+
+let linkResolver: LinkResolver | null = null;
+export function setLinkResolver(fn: LinkResolver | null): void {
+  linkResolver = fn;
+}
+
+/** Parse a `onenote:` client deep-link into its parts, or null if not one. */
+function parseOneNoteHref(href: string): OneNoteLinkInfo | null {
   if (!/^onenote:/i.test(href)) return null;
   const rest = href.replace(/^onenote:/i, "");
   const hashIdx = rest.indexOf("#");
@@ -75,15 +90,39 @@ function oneNoteHrefToHttp(href: string): string | null {
   const pageId = get("page-id").replace(/[{}]/g, "").toLowerCase();
   const basePath = get("base-path");
   if (!basePath || !/^https?:\/\//i.test(basePath) || !file) return null;
+  return { basePath, file, sectionId, pageId, title };
+}
+
+/**
+ * Build the equivalent https OneNote Online URL
+ * (`{base-path}?wd=target(file|section-guid/title|page-guid/)`) from parsed link
+ * info. This is the same form Graph's oneNoteWebUrl uses; browsers and web
+ * Markdown renderers can open it. Returns null without a section GUID.
+ */
+export function buildOneNoteWebUrl(info: OneNoteLinkInfo): string | null {
   // OneNote's own web URLs percent-encode the whole target(...) argument,
   // including parentheses (which encodeURIComponent leaves untouched).
   const pct = (s: string) =>
     encodeURIComponent(s).replace(/[()!*'~]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
   let inner: string;
-  if (sectionId && pageId) inner = `${file}|${sectionId}/${title}|${pageId}/`;
-  else if (sectionId) inner = `${file}|${sectionId}/`;
+  if (info.sectionId && info.pageId) inner = `${info.file}|${info.sectionId}/${info.title}|${info.pageId}/`;
+  else if (info.sectionId) inner = `${info.file}|${info.sectionId}/`;
   else return null;
-  return `${basePath}?wd=target${pct(`(${inner})`)}`;
+  return `${info.basePath}?wd=target${pct(`(${inner})`)}`;
+}
+
+/** Resolve an anchor href to its best https/onenote URL for markdown output. */
+async function resolveLinkHref(href: string): Promise<string> {
+  if (/^https?:\/\//i.test(href)) return href;
+  const info = parseOneNoteHref(href);
+  if (!info) return href;
+  if (linkResolver) {
+    try {
+      const resolved = await linkResolver(info);
+      if (resolved) return resolved;
+    } catch {}
+  }
+  return buildOneNoteWebUrl(info) ?? href;
 }
 
 function sanitizeStem(text: string): string {
@@ -443,18 +482,15 @@ export async function renderHtmlForRead(
   // (which may contain parens/spaces and thus need <angle-bracket> form) is not
   // eaten by the final tag-strip below; restored at the very end.
   const linkMark = String.fromCharCode(0xe001);
-  const linkSlots: { text: string; url: string }[] = [];
+  const linkSlots: { text: string; href: string }[] = [];
   rendered = rendered.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, (whole) => {
     const open = whole.match(/<a\b[^>]*>/i)?.[0] ?? "";
     const href = extractAttr(open, "href");
     const inner = whole.replace(/^<a\b[^>]*>/i, "").replace(/<\/a>\s*$/i, "");
     const text = decodeHtmlEntities(inner.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
     if (!href) return text;
-    const decodedHref = decodeHtmlEntities(href).trim();
-    // Prefer an https OneNote Online URL when the onenote: link carries one.
-    const url = oneNoteHrefToHttp(decodedHref) ?? decodedHref;
     const idx = linkSlots.length;
-    linkSlots.push({ text, url });
+    linkSlots.push({ text, href: decodeHtmlEntities(href).trim() });
     return `${linkMark}${idx}${linkMark}`;
   });
 
@@ -485,15 +521,18 @@ export async function renderHtmlForRead(
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  // Restore masked links as markdown. URLs with parens/whitespace use the
-  // <angle-bracket> form so they don't terminate the link early.
+  // Resolve each link to its best current URL (may hit the sync cache / Graph),
+  // then restore as markdown. URLs with parens/whitespace use the <angle-bracket>
+  // form so they don't terminate the link early.
+  const urls = await Promise.all(linkSlots.map((s) => resolveLinkHref(s.href)));
   const linkRe = new RegExp(`${linkMark}(\\d+)${linkMark}`, "g");
   return collapsed.replace(linkRe, (_, n: string) => {
     const slot = linkSlots[Number(n)];
     if (!slot) return "";
-    const label = escapeMarkdownText(slot.text || slot.url);
-    const url = /[()\s]/.test(slot.url) ? `<${slot.url}>` : slot.url;
-    return `[${label}](${url})`;
+    const url = urls[Number(n)]!;
+    const label = escapeMarkdownText(slot.text || url);
+    const safe = /[()\s]/.test(url) ? `<${url}>` : url;
+    return `[${label}](${safe})`;
   });
 }
 
