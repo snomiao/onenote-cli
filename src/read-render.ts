@@ -570,6 +570,28 @@ export async function renderHtmlForExport(
     return target ? swapAttr(tag, data, target) : tag;
   });
 
+  // Rewrite <a href> links to their current https URL (same policy as markdown:
+  // sync cache → notebook re-resolution → embedded base-path).
+  const anchorHrefs = new Set<string>();
+  for (const m of out.matchAll(/<a\b[^>]*>/gi)) {
+    const raw = extractAttr(m[0], "href");
+    if (raw) anchorHrefs.add(raw);
+  }
+  const resolvedByRaw = new Map<string, string>();
+  await Promise.all(
+    [...anchorHrefs].map(async (raw) => {
+      resolvedByRaw.set(raw, await resolveLinkHref(decodeHtmlEntities(raw).trim()));
+    })
+  );
+  const escapeHtmlAttr = (v: string) =>
+    v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  out = out.replace(/<a\b[^>]*>/gi, (tag) => {
+    const raw = extractAttr(tag, "href");
+    if (!raw) return tag;
+    const resolved = resolvedByRaw.get(raw);
+    return resolved ? swapAttr(tag, raw, escapeHtmlAttr(resolved)) : tag;
+  });
+
   return out;
 }
 
