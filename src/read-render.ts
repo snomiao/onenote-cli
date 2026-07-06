@@ -200,9 +200,17 @@ function sniffMediaType(buf: Buffer): string | undefined {
 
 async function fetchAuthed(resourceUrl: string): Promise<Response> {
   const token = await getAccessToken();
-  const res = await fetch(normalizeOneNoteResourceUrl(resourceUrl), {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const url = normalizeOneNoteResourceUrl(resourceUrl);
+  const doFetch = () => fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  let res = await doFetch();
+  // Retry on throttling/transient errors with Retry-After / exponential backoff,
+  // mirroring graphFetch so media downloads survive rate-limit windows.
+  for (let attempt = 0; attempt < 6 && (res.status === 429 || res.status === 503 || res.status === 504); attempt++) {
+    const retryAfter = parseInt(res.headers.get("retry-after") ?? "0", 10);
+    const delayMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(2000 * 2 ** attempt, 60000);
+    await new Promise((r) => setTimeout(r, delayMs));
+    res = await doFetch();
+  }
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Graph API ${res.status}: ${body}`);
