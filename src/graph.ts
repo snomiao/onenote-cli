@@ -738,7 +738,8 @@ function looksLikeNotebookId(s: string): boolean {
 }
 
 function looksLikeGraphId(s: string): boolean {
-  return /^[0-9]-[0-9a-f-]{10,}$/i.test(s);
+  // Single-part (`1-<hex>`) or composite page id (`1-<hex>!1-<guid>`) as emitted by Graph.
+  return /^[0-9]-[0-9a-f-]{10,}(?:![0-9]-[0-9a-f-]{10,})?$/i.test(s);
 }
 
 export type ResolvedPath = {
