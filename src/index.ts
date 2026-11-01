@@ -1078,7 +1078,7 @@ yargs(hideBin(process.argv))
           }
         )
         .command(
-          "list",
+          ["list", "ls"],
           "List all logged-in accounts",
           () => {},
           async () => {
