@@ -10,7 +10,7 @@ CLI for Microsoft OneNote via Microsoft Graph. Built with Bun + yargs + MSAL.
 ## Quick Reference
 
 ```bash
-onenote auth login                    # Device code flow login
+onenote auth login                    # Browser sign-in (on a VPS: paste the localhost redirect URL back into the terminal)
 onenote auth logout                   # Clear cached tokens
 onenote auth whoami                   # Show current user
 onenote auth setup                    # Show OAuth setup instructions

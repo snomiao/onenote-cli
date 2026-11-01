@@ -1050,7 +1050,7 @@ yargs(hideBin(process.argv))
       yargs
         .command(
           "login",
-          "Login to Microsoft account (device code flow). Run multiple times to add more accounts.",
+          "Login to Microsoft account (browser sign-in; on a remote host, paste the redirect URL). Run multiple times to add more accounts.",
           () => {},
           async () => {
             const existing = await listAccounts();

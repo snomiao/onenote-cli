@@ -46,7 +46,7 @@ bun install
 
 ```bash
 # Auth
-onenote auth login          # Login via device code flow
+onenote auth login          # Browser sign-in; on a remote host, paste the redirect URL back into the terminal
 onenote auth whoami         # Show current user
 onenote auth setup          # Print setup instructions
 onenote auth logout         # Clear tokens

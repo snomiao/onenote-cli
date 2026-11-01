@@ -3,6 +3,7 @@ import {
   type DeviceCodeRequest,
   type AuthenticationResult,
   type AccountInfo,
+  CryptoProvider,
 } from "@azure/msal-node";
 import { readFile, writeFile } from "node:fs/promises";
 import { readFileSync, existsSync } from "node:fs";
@@ -149,33 +150,99 @@ async function deviceCodeFlow(pca: PublicClientApplication): Promise<Authenticat
   return result;
 }
 
+/** Extract the auth code (and state) from a pasted redirect URL or its query string. */
+function parseRedirectInput(input: string): { code?: string; state?: string; error?: string } {
+  const text = input.trim();
+  if (!text) return {};
+  if (!text.includes("code=") && !text.includes("error=")) return {};
+  const query = text.includes("?") ? text.slice(text.indexOf("?") + 1) : text;
+  const params = new URLSearchParams(query.split("#")[0]);
+  const error = params.get("error");
+  if (error) return { error: `${error}: ${params.get("error_description") ?? ""}`.trim() };
+  return { code: params.get("code") ?? undefined, state: params.get("state") ?? undefined };
+}
+
+const page = (title: string, body: string) =>
+  "<html><body style='font-family:system-ui;padding:40px;text-align:center'>" +
+  `<h2>${title}</h2><p>${body}</p></body></html>`;
+
 /**
- * Interactive auth via loopback redirect. Opens a local server on a free port,
- * then opens the system browser to the Microsoft sign-in URL with redirect_uri=http://localhost:PORT.
- * After the user authenticates, Microsoft redirects back with an auth code, which is
- * exchanged for a token (PKCE). No device code, no browser-session conflicts.
+ * Interactive auth via loopback redirect (PKCE). Starts a local server on a free port and opens
+ * the browser to the Microsoft sign-in URL with redirect_uri=http://localhost:PORT.
+ *
+ * When the CLI runs on a remote host (VPS/SSH) but the browser is on your desktop, the redirect
+ * to localhost fails to load — in that case paste the redirect URL from the address bar into the
+ * terminal. Whichever arrives first (loopback or paste) completes the sign-in.
  */
 async function interactiveFlow(pca: PublicClientApplication): Promise<AuthenticationResult> {
-  const openBrowser = async (url: string) => {
-    const platform = process.platform;
-    const cmd = platform === "darwin" ? "open" : platform === "win32" ? "start" : "xdg-open";
-    const { spawn } = await import("node:child_process");
-    spawn(cmd, [url], { stdio: "ignore", detached: true }).unref();
-    console.error(`\nIf your browser didn't open, visit:\n  ${url}\n`);
-  };
-  const result = await pca.acquireTokenInteractive({
-    scopes: SCOPES,
-    openBrowser,
-    successTemplate:
-      "<html><body style='font-family:system-ui;padding:40px;text-align:center'>" +
-      "<h2>Signed in successfully</h2>" +
-      "<p>You can close this tab and return to the terminal.</p></body></html>",
-    errorTemplate:
-      "<html><body style='font-family:system-ui;padding:40px;text-align:center'>" +
-      "<h2>Sign-in failed</h2><p>Please return to the terminal and try again.</p></body></html>",
+  const crypto = new CryptoProvider();
+  const { verifier, challenge } = await crypto.generatePkceCodes();
+  const expectedState = crypto.createNewGuid();
+
+  let settle!: (r: { code?: string; state?: string; error?: string }) => void;
+  const received = new Promise<{ code?: string; state?: string; error?: string }>((r) => (settle = r));
+
+  const server = Bun.serve({
+    hostname: "localhost",
+    port: 0,
+    fetch(req) {
+      const url = new URL(req.url);
+      if (url.pathname !== "/") return new Response("Not found", { status: 404 });
+      const parsed = parseRedirectInput(url.search);
+      if (!parsed.code && !parsed.error) return new Response("Waiting for sign-in...");
+      // Defer so this response is flushed before the CLI proceeds (and possibly exits on error).
+      setTimeout(() => settle(parsed), 50);
+      const ok = !!parsed.code;
+      return new Response(
+        ok
+          ? page("Signed in successfully", "You can close this tab and return to the terminal.")
+          : page("Sign-in failed", "Please return to the terminal and try again."),
+        { headers: { "Content-Type": "text/html; charset=utf-8" } },
+      );
+    },
   });
-  if (!result) throw new Error("Authentication failed");
-  return result;
+  const redirectUri = `http://localhost:${server.port}`;
+
+  const { createInterface } = await import("node:readline");
+  const rl = createInterface({ input: process.stdin, terminal: false });
+  rl.on("line", (line) => {
+    const parsed = parseRedirectInput(line);
+    if (parsed.code || parsed.error) settle(parsed);
+    else if (line.trim()) console.error("Couldn't find a code in that input — paste the full redirect URL.");
+  });
+
+  try {
+    const authUrl = await pca.getAuthCodeUrl({
+      scopes: SCOPES,
+      redirectUri,
+      codeChallenge: challenge,
+      codeChallengeMethod: "S256",
+      state: expectedState,
+    });
+
+    const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+    try {
+      const { spawn } = await import("node:child_process");
+      spawn(cmd, [authUrl], { stdio: "ignore", detached: true }).on("error", () => {}).unref();
+    } catch {}
+    console.error(
+      `\nIf your browser didn't open, visit:\n  ${authUrl}\n\n` +
+        `After signing in you'll be redirected to ${redirectUri}/?code=...\n` +
+        "If that page fails to load (e.g. the CLI runs on a remote server / VPS),\n" +
+        "copy the full URL from the browser's address bar and paste it here, then press Enter:",
+    );
+
+    const { code, state, error } = await received;
+    if (error) throw new Error(`Sign-in failed — ${error}`);
+    if (state && state !== expectedState) throw new Error("Sign-in failed — state mismatch (stale or foreign redirect URL)");
+    const result = await pca.acquireTokenByCode({ code: code!, scopes: SCOPES, redirectUri, codeVerifier: verifier });
+    if (!result) throw new Error("Authentication failed");
+    return result;
+  } finally {
+    rl.close();
+    process.stdin.pause();
+    server.stop();
+  }
 }
 
 /** Add a new account via interactive browser auth. */
