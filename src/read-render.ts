@@ -408,15 +408,18 @@ function renderCell(cellHtml: string): string {
 function renderTable(tableHtml: string): string {
   const stripped = tableHtml.replace(/^<table\b[^>]*>/i, "").replace(/<\/table>\s*$/i, "");
   const { masked, slots } = maskNestedTables(stripped);
-  const rows = [...masked.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map((m) => {
-    const rowMasked = m[1] ?? "";
-    return parseRowCells(rowMasked).map((c) => renderCell(c.replace(/\uE000TABLE(\d+)\uE000/g, (_, n) => slots[Number(n)] ?? "")));
-  });
+  const rowHtmls = [...masked.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map((m) => m[1] ?? "");
+  const rows = rowHtmls.map((rowMasked) =>
+    parseRowCells(rowMasked).map((c) => renderCell(c.replace(/\uE000TABLE(\d+)\uE000/g, (_, n) => slots[Number(n)] ?? ""))),
+  );
   if (rows.length === 0) return "";
   const width = Math.max(...rows.map((r) => r.length));
   const padded = rows.map((r) => [...r, ...Array(width - r.length).fill("")]);
-  const header = padded[0]!.map((c) => c || " ");
-  const body = padded.slice(1);
+  // OneNote tables have no header semantics (all <td>), so emit an empty header
+  // row by default; only promote the first row when it is made of real <th> cells.
+  const firstRowIsHeader = /<th\b/i.test(rowHtmls[0] ?? "") && !/<td\b/i.test(rowHtmls[0] ?? "");
+  const header = firstRowIsHeader ? padded[0]!.map((c) => c || " ") : Array(width).fill(" ");
+  const body = firstRowIsHeader ? padded.slice(1) : padded;
   const lines = [
     `| ${header.join(" | ")} |`,
     `| ${header.map(() => "---").join(" | ")} |`,
