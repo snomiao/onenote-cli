@@ -2,6 +2,10 @@
   "name": "onenote-cli",
   "version": "0.1.0",
   "description": "Make your OneNote notebooks survive in the age of AI",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/snomiao/onenote-cli.git"
+  },
   "type": "module",
   "bin": {
     "onenote-cli": "./src/index.ts",
