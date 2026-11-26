@@ -47,5 +47,13 @@
     "semantic-release": "^25.0.3",
     "typescript": "^5.7.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "rustify": {
+    "mode": "hybrid",
+    "bins": {
+      "onenote": "onenote-cli",
+      "onenote-cli": "onenote-cli"
+    },
+    "rootEnv": "ONENOTE_CLI_PACKAGE_ROOT"
+  }
 }

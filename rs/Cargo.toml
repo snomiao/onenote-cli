@@ -1,0 +1,15 @@
+[package]
+name = "onenote-cli"
+version = "0.0.0"
+edition = "2021"
+description = "Make your OneNote notebooks survive in the age of AI"
+license = "MIT"
+
+[[bin]]
+name = "onenote-cli"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true
