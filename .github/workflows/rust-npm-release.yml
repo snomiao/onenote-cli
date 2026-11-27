@@ -42,25 +42,22 @@ jobs:
       smoke-expect: List notebooks, sections, or pages
       # Rust against TypeScript, on the Linux binary that was just built
       # (rs/parity.gen.mjs says what the cases are; nothing in them reaches
-      # Microsoft). Four runs:
-      #   1. every case, TypeScript against the binary;
-      #   2. the binary alone against a stand-in package, which fails unless
-      #      exactly the cases marked "handback" reach the JavaScript;
-      #   3. and 4. the same two with a pseudo-terminal as standard output,
-      #      where the search prints colours and clickable titles.
+      # Microsoft). rs/parity/proof.sh runs, side by side:
+      #   - every case, TypeScript against the binary;
+      #   - the binary alone against a stand-in package, which fails unless
+      #     exactly the cases marked "handback" reach the JavaScript;
+      #   - the same two with a pseudo-terminal as standard output, where the
+      #     search prints colours and clickable titles;
+      #   - `cargo test` in rs/, for the test that compares every time zone
+      #     the binary reads with the time zone database inside the bun that
+      #     is installed here. That one builds the crate once more with the
+      #     runner's own Rust, from the same sources and Cargo.lock. It fails
+      #     when bun's database or the crate's has moved and the two no
+      #     longer agree where the binary answers, and prints the lines to
+      #     add to rs/src/time.rs.
       parity: >-
         bun install --frozen-lockfile
-        && node rs/parity.gen.mjs --check
-        && node "$RUSTIFY_PARITY" --cases rs/parity.json
-        --ts "sh rs/parity/ts.sh" --rs "$RUSTIFY_BIN_DIR/onenote-cli"
-        && node "$RUSTIFY_PARITY" --cases rs/parity.json
-        --rs "$RUSTIFY_BIN_DIR/onenote-cli" --handback ONENOTE_CLI_PACKAGE_ROOT=src/index.ts
-        && node "$RUSTIFY_PARITY" --cases rs/parity.json
-        --ts "python3 rs/parity/terminal.py sh rs/parity/ts.sh"
-        --rs "python3 rs/parity/terminal.py $RUSTIFY_BIN_DIR/onenote-cli"
-        && node "$RUSTIFY_PARITY" --cases rs/parity.json
-        --rs "python3 rs/parity/terminal.py $RUSTIFY_BIN_DIR/onenote-cli"
-        --handback ONENOTE_CLI_PACKAGE_ROOT=src/index.ts
+        && sh rs/parity/proof.sh "$RUSTIFY_PARITY" "$RUSTIFY_BIN_DIR/onenote-cli"
       # Run once on every platform after installing. `auth setup` is answered
       # by the binary itself (it prints the setup guide and needs nothing);
       # it is the one ported command that can run on a machine with no index.
