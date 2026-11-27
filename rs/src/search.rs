@@ -15,7 +15,10 @@
 //!   TypeScript then falls back to reading the section files;
 //! - a row that is not what `onenote sync` writes (a NULL title, tag lines
 //!   that are not a list), or a date in a notation only `Date` reads;
-//! - a `TZ` that is not the name of a zone.
+//! - a `TZ` that is not the name of a zone, a zone at a time for which the
+//!   runtime's time zone database says something else than the one compiled
+//!   in, a time before 1970 or after 2099, and an index last written in the
+//!   last millisecond of a second (see time.rs for each).
 
 use std::path::Path;
 
@@ -797,10 +800,7 @@ pub fn run(args: &Args, package_root: &Path, tty: bool) -> Result<String, HandBa
 
     // The index's modification time is what "last synced" shows.
     let synced = match std::fs::metadata(&index).and_then(|meta| meta.modified()) {
-        Ok(modified) => {
-            let seconds = modified.duration_since(std::time::UNIX_EPOCH).map_err(|_| HandBack)?.as_secs();
-            format!(" \u{2022} last synced: {}", time::locale_string(i64::try_from(seconds).map_err(|_| HandBack)?, &zone)?)
-        }
+        Ok(modified) => format!(" \u{2022} last synced: {}", time::locale_string(time::modified_second(modified)?, &zone)?),
         Err(_) => return Err(HandBack),
     };
     let page_info = if offset > 0 {
