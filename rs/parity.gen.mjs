@@ -345,11 +345,13 @@ const CLOSED_ON_MACOS = "macOS's SQLite cannot open an index in WAL mode read-on
 
 /**
  * One case. `db` names the index to start from ("notes", or ["notes",
- * "--wal", "pending"]): by default as a finished `onenote sync` leaves it
- * (make-db.ts --wal empty: the index, an empty -wal file and the -shm file),
- * and with "--closed" as one closed cleanly leaves it (the index alone).
- * `closed` says that the index has no -wal file when the command runs (set
- * by "--closed"; for a setup line that removes it). `mtime` is the index's
+ * "--wal", "pending"]): by default with an empty -wal file and the -shm file
+ * beside it (make-db.ts --wal empty), which is what a finished `onenote sync`
+ * leaves on macOS, and on Linux under bun 1.4.4 and older; with "--closed"
+ * as one closed cleanly leaves it (the index alone), which is what a sync
+ * leaves on Linux under bun 1.4.5 (make-db.ts says why). `closed` says that
+ * the index has no -wal file when the command runs (set by "--closed"; for a
+ * setup line that removes it). `mtime` is the index's
  * modification time, `root` files to put in the package directory, `tz` the
  * TZ to run under (null: none, the system's zone), `pkg` a package
  * directory other than <HOME>/pkg, `normalize` rules for what differs
@@ -626,12 +628,20 @@ back("search time: TZ is empty", "the runtime reads rules, paths and other spell
 
 // ── search: the state of the machine ─────────────────────────────────────────
 
-add("search state: an index as a finished sync leaves it", search("plan"), { db: ["notes", "--wal", "empty"] });
+// What the bun that runs the cases leaves when a program ends as a sync
+// does (make-db.ts --wal sync): on macOS, and under bun 1.4.4 and older, the
+// index with an empty -wal file and the -shm file; on Linux under bun 1.4.5
+// the index alone. Native everywhere the search is: should a bun on macOS
+// ever leave no -wal file, the binary hands this back there and the
+// --handback check says so.
+add("search state: an index as a sync under this bun leaves it", search("plan"), { db: ["notes", "--wal", "sync"] });
+add("search state: an index with an empty -wal file and the -shm file", search("plan"), { db: ["notes", "--wal", "empty"] });
 add("search state: an index whose rows are still in the write-ahead log", search("plan"), { db: ["notes", "--wal", "pending"] });
 add("search state: tags from the write-ahead log", search("#todo", "-c"), { db: ["notes", "--wal", "pending"] });
-// Every other case starts from an index as a sync leaves it. One that was
-// closed cleanly has no -wal file, which macOS's SQLite needs to open it
-// read-only; it makes a missing -shm file itself.
+// Every other case starts from an index with an empty -wal file and the
+// -shm file beside it. One that was closed cleanly has no -wal file, which
+// macOS's SQLite needs to open it read-only; it makes a missing -shm file
+// itself. A sync on Linux under bun 1.4.5 leaves it so.
 add("search state: an index closed cleanly", search("plan"), { db: ["notes", "--closed"] });
 add("search state: tags from an index closed cleanly", search("#todo", "-c"), { db: ["notes", "--closed"] });
 add("search state: no results from an index closed cleanly", search("nosuchword"), { db: ["notes", "--closed"] });

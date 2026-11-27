@@ -4483,7 +4483,28 @@
       "handback": "the runtime reads rules, paths and other spellings its own way; Rust takes zone names only"
     },
     {
-      "name": "search state: an index as a finished sync leaves it",
+      "name": "search state: an index as a sync under this bun leaves it",
+      "args": [
+        "search",
+        "plan"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z --wal sync"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "node \"<REPO>/rs/parity/files.mjs\" --mtime \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli"
+      ],
+      "handback": {
+        "win32": "the search is not ported for Windows: bun's SQLite, time zone data and console there were never compared"
+      }
+    },
+    {
+      "name": "search state: an index with an empty -wal file and the -shm file",
       "args": [
         "search",
         "plan"
