@@ -18,7 +18,9 @@
 // onenote keeps its search index in the directory it is installed in, so a
 // case gets a package directory of its own (rs/parity/package.sh; the
 // TypeScript is started from it by rs/parity/ts.sh), and most cases get an
-// index built into it (rs/parity/make-db.ts, from a file in rs/parity/db/).
+// index built into it (rs/parity/make-db.ts, from a file in rs/parity/db/,
+// which this file writes, or from one of the two in rs/parity/rows/, which
+// are kept as the independent verification wrote them).
 // The generated file has no path of this machine in it and is committed.
 //
 // Nothing here touches Microsoft. The cases run with an empty HOME, so there
@@ -299,6 +301,15 @@ const odd = {
 
 const DBS = { notes, bulk, ages, text, ...Object.fromEntries(Object.entries(odd).map(([name, rows]) => [`odd-${name}`, rows])) };
 
+/**
+ * Rows this file does not write: rs/parity/rows/<name>.json, from the
+ * independent verification. `odd-rows` is 37 pages that are unusual but
+ * valid (titles with line ends, dates with offsets, tag lines with escapes,
+ * letters that change length in small letters); `ties` is 300 pages, in a
+ * shuffled order, that are equal in every column the search sorts by.
+ */
+const KEPT = ["odd-rows", "ties"];
+
 // ── cases ────────────────────────────────────────────────────────────────────
 
 const cases = [];
@@ -316,15 +327,17 @@ const AFTER = [
  * One case. `db` names the index to start from ("notes", or ["notes",
  * "--wal", "empty"]), `mtime` its modification time, `root` files to put in
  * the package directory, `tz` the TZ to run under (null: none, the system's
- * zone).
+ * zone), `pkg` a package directory other than <HOME>/pkg, `normalize` rules
+ * for what differs between two runs of the same program.
  */
-function make(name, args, { db, mtime = MTIME, root = {}, tz = "UTC", env = {}, files, setup = [], stdin, after = AFTER, handback } = {}) {
+function make(name, args, { db, mtime = MTIME, root = {}, tz = "UTC", env = {}, files, setup = [], stdin, after = AFTER, handback, normalize, pkg } = {}) {
   const lines = ['sh "<REPO>/rs/parity/package.sh"'];
   for (const [file, content] of Object.entries(root)) lines.push(`printf %s ${sq(content)} > ${ROOT}/${file}`);
   if (db) {
     const [which, ...flags] = [].concat(db);
-    if (!DBS[which]) throw new Error(`${name}: no index called ${which}`);
-    lines.push(`bun "<REPO>/rs/parity/make-db.ts" "<REPO>/rs/parity/db/${which}.json" --mtime ${mtime}${flags.length ? ` ${flags.join(" ")}` : ""}`);
+    const rows = DBS[which] ? `db/${which}.json` : KEPT.includes(which) ? `rows/${which}.json` : null;
+    if (!rows) throw new Error(`${name}: no index called ${which}`);
+    lines.push(`bun "<REPO>/rs/parity/make-db.ts" "<REPO>/rs/parity/${rows}" --mtime ${mtime}${flags.length ? ` ${flags.join(" ")}` : ""}`);
   }
   lines.push(...setup);
   if (cases.some((c) => c.name === name)) throw new Error(`two cases are called ${name}`);
@@ -332,10 +345,11 @@ function make(name, args, { db, mtime = MTIME, root = {}, tz = "UTC", env = {}, 
     name,
     args,
     ...(stdin === undefined ? {} : { stdin }),
-    env: { ...(tz === null ? {} : { TZ: tz }), ...env },
+    env: { ...(tz === null ? {} : { TZ: tz }), ...(pkg ? { ONENOTE_CLI_PACKAGE_ROOT: pkg } : {}), ...env },
     ...(files ? { files } : {}),
     setup: lines,
     after,
+    ...(normalize ? { normalize } : {}),
     ...(handback ? { handback } : {}),
   });
 }
@@ -776,6 +790,194 @@ back("cli: auth whoami", NOT_PORTED, ["auth", "whoami"]);
 back("cli: auth without a subcommand", "yargs's usage error", ["auth"]);
 back("cli: SEARCH in capitals is no command", "yargs's usage error", ["SEARCH", "plan"], NOTES);
 
+// ── cases from the independent verification ──────────────────────────────────
+
+// An independent verifier ran 196 cases of its own against both sides
+// (queries and expressions, option values, unusual rows, three hundred pages
+// that tie on every sort key, zones, variables, states of the machine). They
+// are kept as written, but for two that are split in two (see the ties); `x`
+// in a name became the group it belongs to. Twelve of them showed where the
+// binary answered differently; those now go back.
+const FTS_REJECTS = "FTS5 rejects it and the TypeScript reads the section files instead";
+const NO_ZONE_NAME = "the runtime reads rules, paths and other spellings its own way; Rust takes zone names only";
+const BEFORE_1970 = "a span that reaches back before 1970, where the two time zone databases were not compared";
+const FOR_THE_RUNTIME = "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated";
+const OTHER_ZONE_DATA = "the runtime's time zone database and the one compiled in differ for this zone at this time";
+const LAST_MILLISECOND = "the last millisecond of a second is left to the runtime, which rounds the file's time its own way";
+const GOES_BACK = {
+  'search expression: "plan AND NOT project"': FTS_REJECTS,
+  'search expression: "NOT plan"': FTS_REJECTS,
+  'search expression: "- title : plan OR zzz"': YARGS,
+  'search expression: "plan AND AND retro"': FTS_REJECTS,
+  'search expression: "and"': FTS_REJECTS,
+  'search expression: "plan or"': FTS_REJECTS,
+  'search expression: "plan.or.retro"': FTS_REJECTS,
+  'search expression: "rowid:1 OR plan"': FTS_REJECTS,
+  'search expression: "plan OR alice\'s"': FTS_REJECTS,
+  'search expression: "plan AND \\"of record\\""': FTS_REJECTS,
+  'search expression: "plan* OR *plan"': FTS_REJECTS,
+  'search expression: "tag:star AND retro"': FTS_REJECTS,
+  'search expression: "#todo OR #done"': FTS_REJECTS,
+  "search options: since the year 1": "Rust reads a day only in the years 1000 to 9999",
+  "search options: since the year 999": "Rust reads a day only in the years 1000 to 9999",
+  "search options: since 00030d": "Rust counts back at most 9999 units",
+  "search options: since 9999y": BEFORE_1970,
+  "search options: since 9999m": BEFORE_1970,
+  "search options: since 1026y": BEFORE_1970,
+  "search options: since empty": YARGS,
+  "search options: --Max-Lines": YARGS,
+  "search options: --LIMIT": YARGS,
+  "search options: -G": YARGS,
+  "search options: a limit with a blank after it": YARGS,
+  "search options: a limit with a plus": YARGS,
+  "search options: a limit in fullwidth digits": YARGS,
+  "search options: an offset of 00": YARGS,
+  "search options: -v after the query": YARGS,
+  "search options: --online=false": YARGS,
+  "search options: --no-online": YARGS,
+  'search time: TZ="UTC0"': NO_ZONE_NAME,
+  'search time: TZ="utc"': NO_ZONE_NAME,
+  'search time: TZ="Z"': NO_ZONE_NAME,
+  'search time: TZ="localtime"': NO_ZONE_NAME,
+  'search time: TZ="posix/Asia/Tokyo"': NO_ZONE_NAME,
+  'search time: TZ="Asia/Tokyo "': NO_ZONE_NAME,
+  'search time: TZ="Etc/Unknown"': NO_ZONE_NAME,
+  'search time: TZ="SystemV/EST5"': NO_ZONE_NAME,
+  "search env: NODE_NO_WARNINGS=1": FOR_THE_RUNTIME,
+  "search env: ICU_TIMEZONE_FILES_DIR=/nonexistent": FOR_THE_RUNTIME,
+  "search state: .env here is a link to a file that sets TZ": "bun loads it, and TZ changes the time in the last line",
+  "search state: .env here is a directory": "a .env that is not a file is not looked into",
+  "search state: .env.test.local here sets TZ": "every .env file bun might load is looked at, whatever NODE_ENV is",
+  "search state: the index's time has a fraction": LAST_MILLISECOND,
+  "auth setup: an empty argument after it": YARGS,
+};
+const wentBack = new Set();
+/** A case of the verification: for Rust, unless `GOES_BACK` has a reason. */
+function also(name, args, options) {
+  if (GOES_BACK[name]) wentBack.add(name);
+  make(name, args, { ...options, handback: GOES_BACK[name] });
+}
+
+// queries
+for (const [n, q] of [["blanks around a word", " plan "], ["a line end after a word", "plan\n"], ["a tab between words", "plan\tretro"], ["a line end between words", "plan\nretro"], ["null", "null"], ["undefined", "undefined"], ["1.0", "1.0"], [".5", ".5"], ["+5", "+5"], ["0", "0"], ["a number past 2^53", "9007199254740993"], ["0b11", "0b11"], ["__proto__", "__proto__"], ["constructor", "constructor"], ["$0", "$0"], ["a backslash", "\\"], ["%s", "%s"], ["an asterisk", "*"], ["eight words", "a b c d e f g h"], ["a hash alone", "#"], ["tag: alone", "tag:"], ["a=b at the front", "=plan"]]) also(`search query: ${n}`, search(q), NOTES);
+// FTS5 expressions, two SQLite versions
+for (const q of ["plan AND NOT project", "NOT plan", "plan NOT (project OR batter)", "^plan OR zzz", "title : plan OR zzz", "{title body} : plan OR zzz", "{title}: plan NOT retro", "- title : plan OR zzz", "plan + of + record OR zzz", "NEAR(plan project) OR zzz", 'NEAR("project plan" timeline, 10) OR zzz', "pl* AND ret*", "plan AND AND retro", "and", "plan or", "plan.or.retro", "body:plan AND title:retro", "rowid:1 OR plan", "plan OR alice's", "plan OR é", "((plan OR retro))", '"plan" OR "retro"', 'plan AND "of record"', "plan* OR *plan", "plan\nOR\tretro", "#todo plan OR milk", "tag:star AND retro", "#todo OR #done", 'title:"weekly sync" OR zzz', "plan NOT plan"]) also(`search expression: ${JSON.stringify(q)}`, search(q), NOTES);
+// option values
+for (const [n, a] of [["a notebook that is one blank", ["plan", "-n", " "]], ["a notebook that is one quote", ["plan", "-n", "'"]], ["a quote at the front of a notebook", ["plan", "-n", "'Work"]], ["a quote inside a notebook", ["plan", "-n", 'Wo"rk']], ["a quote at the end of a section", ["plan", "-s", "Meet'"]], ["a quote at the front of an account", ["plan", "-a", '"alice@example.com']], ["since in quotes is text", ["plan", "--since", '"2026-01-01"']], ["since with milliseconds is text", ["plan", "--since", "2026-01-01T00:00:00.000Z"]], ["since a leap day", ["plan", "--since", "2024-02-29"]], ["since the year 1", ["plan", "--since", "0001-01-01"]], ["since the year 999", ["plan", "--since", "0999-12-31"]], ["since the last day of 9999", ["plan", "--since", "9999-12-31"]], ["since 0m", ["plan", "--since", "0m"]], ["since 00030d", ["plan", "--since", "00030d"]], ["since 9999m", ["plan", "--since", "9999m"]], ["since 9999y", ["plan", "--since", "9999y"]], ["since 1026y", ["plan", "--since", "1026y"]], ["since 30d and a line end", ["plan", "--since", "30d\n"]], ["since in fullwidth digits", ["plan", "--since", "３０d"]], ["since with a blank in front", ["plan", "--since", " 30d"]], ["since 2026-1-1", ["plan", "--since", "2026-1-1"]], ["since true", ["plan", "--since", "true"]], ["since 0", ["plan", "--since", "0"]], ["since 1e3", ["plan", "--since", "1e3"]], ["since empty", ["plan", "--since", ""]], ["the limit before the query", ["-l", "3", "plan"]], ["limit, offset and max-lines with =", ["--limit=3", "--offset=1", "plan", "-m", "2"]], ["the largest offset", ["plan", "-p", "999999999"]], ["the largest max-lines", ["#todo", "-m", "999999999"]], ["-m 2 grouped", ["#todo", "-m", "2", "-g"]], ["-g and then 1 as the query", ["-g", "1"]], ["-c and then 0 as the query", ["-c", "0"]], ["--compact --group -l 4", ["plan", "--compact", "--group", "-l", "4"]], ["every filter, grouped", ["plan", "-n", "Work", "-s", "Meetings", "-a", "alice@example.com", "-g"]], ["a notebook with %", ["plan", "--notebook", "W%k"]], ["a section of seven _", ["plan", "--section", "_______"]], ["a notebook with a line end", ["plan", "--notebook", "Work\n"]], ["an account with a blank after it", ["plan", "--account", "alice@example.com "]], ["--Max-Lines", ["plan", "--Max-Lines", "3"]], ["--LIMIT", ["plan", "--LIMIT", "3"]], ["-G", ["plan", "-G"]], ["a limit with a blank after it", ["plan", "--limit", "3 "]], ["a limit with a plus", ["plan", "--limit", "+3"]], ["a limit in fullwidth digits", ["plan", "--limit", "３"]], ["an offset of 00", ["plan", "--offset", "00"]], ["-v after the query", ["plan", "-v"]], ["--online=false", ["plan", "--online=false"]], ["--no-online", ["plan", "--no-online"]]]) also(`search options: ${n}`, search(...a), NOTES);
+// rows that are unusual but valid
+for (const q of ["zeta", "ZETA", "#todo", "#done", "#checkbox", "#star", "#todo zeta", '""', "kelvin", "İstanbul", "one", "ſtar"]) for (const [l, f] of [["flat", []], ["compact", ["-c"]], ["grouped", ["-g"]]]) also(`search rows: ${JSON.stringify(q)} ${l}`, search(q, ...f), { db: "odd-rows" });
+// three hundred pages that tie on every sort key. Two of these asked for all
+// three hundred at once (`omega -l 300 -c` and `"" -l 300 -c`), which is 302
+// lines: more than the TypeScript gets through a socket every time (see
+// `bulk` above; under load it lost lines in 17 of 48 runs against itself).
+// Each is two cases here, a half at a time.
+for (const [n, a] of [["the first half, compact", ["omega", "-l", "150", "-c"]], ["the second half, compact", ["omega", "-l", "150", "-p", "150", "-c"]], ["a window, compact", ["omega", "-l", "40", "-p", "37", "-c"]], ["tags, all", ["#todo", "-l", "300", "-c"]], ["tags, a window", ["#todo", "-l", "25", "-p", "13"]], ["no query, the first half", ['""', "-l", "150", "-c"]], ["no query, the second half", ['""', "-l", "150", "-p", "150", "-c"]], ["a prefix", ["unique*", "-l", "300", "-c"]], ["grouped", ["omega", "-g", "-l", "120"]]]) also(`search ties: ${n}`, search(...a), { db: "ties" });
+// zones: the same on both sides
+for (const z of ["Asia/Calcutta", "Europe/Kiev", "Antarctica/Troll", "EST", "EST5EDT", "Factory", "Etc/GMT-14", "GMT0", "America/Ciudad_Juarez", "Pacific/Kanton", "Europe/Kyiv"]) also(`search time: ${z}`, search("retro"), one(z, MTIME));
+for (const z of ["UTC0", "utc", "Z", "localtime", "posix/Asia/Tokyo", "Asia/Tokyo ", "Etc/Unknown", "SystemV/EST5"]) also(`search time: TZ=${JSON.stringify(z)}`, search("retro"), one(z, MTIME));
+// locale and other variables that change nothing
+for (const [k, v] of [["LANG", "de_DE.UTF-8"], ["LC_ALL", "ja_JP.UTF-8"], ["LC_ALL", "C"], ["LC_TIME", "fr_FR.UTF-8"], ["LANGUAGE", "fr"], ["FORCE_COLOR", "1"], ["NO_COLOR", "1"], ["DEBUG", "*"], ["NODE_NO_WARNINGS", "1"], ["TZDIR", "/nonexistent"], ["ICU_TIMEZONE_FILES_DIR", "/nonexistent"], ["COLUMNS", "20"]]) also(`search env: ${k}=${v}`, search("retro"), { ...NOTES, env: { [k]: v } });
+also("search state: a package directory with blanks and letters outside ASCII", search("retro"), { ...NOTES, pkg: "<HOME>/my pkg ü 日本" });
+also("search state: a package directory with # and %41", search("retro"), { ...NOTES, pkg: "<HOME>/c#%41&x=1" });
+also("search state: .env here is a link to a file that sets TZ", search("retro"), { ...NOTES, files: { "real.env": "TZ=Asia/Tokyo\n" }, setup: ["ln -s real.env .env"] });
+also("search state: .env here is a directory", search("retro"), { ...NOTES, setup: ["mkdir .env"] });
+also("search state: .env.test.local here sets TZ", search("retro"), { ...NOTES, files: { ".env.test.local": "TZ=Asia/Tokyo\n" } });
+also("search state: a .env here with CRLF and no letters that matter", search("retro"), { ...NOTES, files: { ".env": "FOO=bar\r\nONENOTE_CLIENT_ID=x\r\n" } });
+also("search state: the index's time has a fraction", search("retro"), { ...NOTES, setup: [`touch -d '2026-03-08 09:05:07.9996 UTC' ${ROOT}/.onenote/search.db`] });
+also("auth setup: LANG=de_DE.UTF-8", ["auth", "setup"], { env: { LANG: "de_DE.UTF-8" } });
+also("auth setup: an empty argument after it", ["auth", "setup", ""]);
+also("auth setup: a package directory with blanks", ["auth", "setup"], { pkg: "<HOME>/my pkg" });
+for (const name of Object.keys(GOES_BACK)) if (!wentBack.has(name)) throw new Error(`GOES_BACK names a case that is not there: ${name}`);
+
+// The twelve on which the two differed, and what was added when they were
+// repaired.
+
+// Time zones. The runtime has its own time zone database and the binary has
+// one compiled in; rs/src/time.rs lists the zones and stretches of time on
+// which the two differ (found by `cargo test`, which compares every zone),
+// and the binary leaves those to the runtime, three days on either side
+// included.
+const WINTER_2026 = "2026-11-27T12:00:00Z";
+for (const zone of ["America/Vancouver", "America/Edmonton", "America/Winnipeg", "Canada/Pacific", "America/Havana", "Africa/Casablanca", "America/Inuvik", "America/Yellowknife", "America/Rainy_River", "Canada/Mountain", "Canada/Central", "Cuba", "Africa/El_Aaiun"]) {
+  back(`search time: ${zone} on 2026-11-27, where the databases differ`, OTHER_ZONE_DATA, search("retro"), one(zone, WINTER_2026));
+}
+back("search time: Bogota on 1992-05-02, where the databases differ", OTHER_ZONE_DATA, search("retro"), one("America/Bogota", "1992-05-02T12:00:00Z"));
+back("search time: Tehran on 1979-05-25, where the databases differ", OTHER_ZONE_DATA, search("retro"), one("Asia/Tehran", "1979-05-25T21:00:00Z"));
+back("search time: Iran on 1979-05-25, where the databases differ", OTHER_ZONE_DATA, search("retro"), one("Iran", "1979-05-25T21:00:00Z"));
+// The same zones where the databases agree.
+add("search time: Vancouver before the databases differ", search("retro"), one("America/Vancouver", MTIME));
+add("search time: Vancouver, the last second before the margin", search("retro"), one("America/Vancouver", "2026-10-29T08:59:59Z"));
+back("search time: Vancouver, the first second of the margin", OTHER_ZONE_DATA, search("retro"), one("America/Vancouver", "2026-10-29T09:00:00Z"));
+add("search time: Casablanca before the databases differ", search("retro"), one("Africa/Casablanca", MTIME));
+add("search time: Havana after the winter the databases differ on", search("retro"), one("America/Havana", "2027-06-01T12:00:00Z"));
+add("search time: Bogota today", search("retro"), one("America/Bogota", MTIME));
+add("search time: Bogota a week after the day the databases differ on", search("retro"), one("America/Bogota", "1992-05-09T12:00:00Z"));
+add("search time: Tehran today", search("retro"), one("Asia/Tehran", MTIME));
+// --since counts back on the local calendar, from now.
+back("search since: a span in Vancouver, where the databases differ from November 2026 on", OTHER_ZONE_DATA, search("boundary", "--since", "100d"), {
+  tz: "America/Vancouver",
+  // One page, last modified 100 days and 30 minutes ago: inside the span by
+  // the runtime's clock, outside it by the compiled-in one.
+  setup: [
+    `printf '[{"notebook":"N","section":"S","title":"Edge page","body":"boundary marker text","last_modified":"%s"}]' "$(date -u -d '100 days ago 30 minutes ago' +%Y-%m-%dT%H:%M:%SZ)" > edge.json && bun "<REPO>/rs/parity/make-db.ts" edge.json --mtime ${MTIME} && rm edge.json`,
+  ],
+});
+back("search since: thirty days back in Edmonton", OTHER_ZONE_DATA, search("era", "--since", "30d"), { db: "ages", tz: "America/Edmonton" });
+add("search since: thirty days back in Bogota", search("era", "--since", "30d"), { db: "ages", tz: "America/Bogota" });
+add("search since: a day in Vancouver needs no zone", search("plan", "--since", "2026-02-15"), { ...NOTES, tz: "America/Vancouver", mtime: MTIME });
+back("search since: ninety-nine years back", BEFORE_1970, search("era", "--since", "99y"), { db: "ages" });
+// The years that were compared: 1970 to 2099.
+add("search time: the last second that was compared", search("retro"), one("UTC", "2099-12-31T23:59:59Z"));
+back("search time: the year 2100", "the time zone databases were compared for 1970 to 2099", search("retro"), one("UTC", "2100-01-01T00:00:00Z"));
+back("search time: an index from before 1970", "the time zone databases were compared for 1970 to 2099", search("retro"), one("UTC", "1969-12-31T23:59:59Z"));
+
+// The file's time. The runtime turns it into milliseconds in floating point,
+// and from 122 ns before a full second on (in 2026) shows the next second.
+add("search state: the index's time is just short of the last millisecond", search("retro"), { ...NOTES, setup: [`touch -d '2026-03-08 09:05:07.998999999 UTC' ${ROOT}/.onenote/search.db`] });
+back("search state: the index's time is in the last millisecond", LAST_MILLISECOND, search("retro"), { ...NOTES, setup: [`touch -d '2026-03-08 09:05:07.999 UTC' ${ROOT}/.onenote/search.db`] });
+back("search state: the index's time is 120 ns short of the next second", LAST_MILLISECOND, search("retro"), {
+  ...NOTES,
+  setup: [`touch -d '2026-03-08 09:05:07.999999900 UTC' ${ROOT}/.onenote/search.db`],
+});
+
+// Variables the runtime reads for itself.
+const PID = [["\\(node:\\d+\\)", "(node:<PID>)"]];
+back("search env: BUN_JSC_dumpOptions=1 makes the engine list its options", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { BUN_JSC_dumpOptions: "1" } });
+back("auth setup: BUN_JSC_dumpOptions=1 makes the engine list its options", FOR_THE_RUNTIME, ["auth", "setup"], { env: { BUN_JSC_dumpOptions: "1" } });
+// The warning carries the process id: the one normalize rule in this file.
+back("search env: NODE_DEBUG=http makes the runtime warn", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { NODE_DEBUG: "http" }, normalize: PID });
+back("auth setup: NODE_DEBUG=http makes the runtime warn", FOR_THE_RUNTIME, ["auth", "setup"], { env: { NODE_DEBUG: "http" }, normalize: PID });
+back("search env: a transpiler cache directory, which the runtime fills", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { BUN_RUNTIME_TRANSPILER_CACHE_PATH: "<HOME>/transpiled" } });
+back("search env: BUN_ENV", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { BUN_ENV: "production" } });
+back("search env: MIMALLOC_SHOW_ERRORS=1", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { MIMALLOC_SHOW_ERRORS: "1" } });
+back("search env: NODE_EXTRA_CA_CERTS", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { NODE_EXTRA_CA_CERTS: "/nonexistent.pem" } });
+back("search env: ICU_DATA", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { ICU_DATA: "/nonexistent" } });
+back("search env: node_debug in small letters", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { node_debug: "http" } });
+// What bun's installer puts into the shell's profile.
+add("search env: BUN_INSTALL, as bun's installer sets it", search("retro"), { ...NOTES, env: { BUN_INSTALL: "<HOME>/.bun" } });
+add("auth setup: BUN_INSTALL, as bun's installer sets it", ["auth", "setup"], { env: { BUN_INSTALL: "<HOME>/.bun" } });
+// Set by `bun run` and `npm run` for what they start.
+add("search env: NODE and npm_config_user_agent, as a package script has them", search("retro"), { ...NOTES, env: { NODE: "/usr/bin/node", npm_config_user_agent: "bun/1.4.0 npm/? node/v26.3.0 linux x64" } });
+// The allocator has read the environment long before bun reads a .env.
+add("search state: a .env here that sets MIMALLOC_VERBOSE comes too late for the allocator", search("retro"), { ...NOTES, files: { ".env": "MIMALLOC_VERBOSE=1\n" } });
+back("search state: a .env here that names ICU's data directory", "the letters ICU anywhere in the file are enough to step aside", search("retro"), {
+  ...NOTES,
+  files: { ".env": "ICU_TIMEZONE_FILES_DIR=/nonexistent\n" },
+});
+
+// A package directory bun cannot load a program from: the TypeScript ends
+// with `Module not found`, and the binary hands back to get the same. (The
+// --handback check gives every case its own stand-in package directory, so
+// there these four are answered by the binary and cannot be marked.)
+add("search state: a package directory with ? in its name cannot be loaded", search("retro"), { ...NOTES, pkg: "<HOME>/what?" });
+add("auth setup: a package directory with ? in its name cannot be loaded", ["auth", "setup"], { pkg: "<HOME>/what?" });
+add("search state: a package directory with a backslash in its name cannot be loaded", search("retro"), { ...NOTES, pkg: "<HOME>/back\\slash" });
+add("search state: a package directory that is a link to one with ? in its name", search("retro"), {
+  ...NOTES,
+  pkg: "<HOME>/link",
+  setup: ['if [ -d "<HOME>/link" ]; then mv "<HOME>/link" "<HOME>/real?dir" && ln -s "real?dir" "<HOME>/link"; fi'],
+});
+
 // ── output ───────────────────────────────────────────────────────────────────
 
 // Every case runs in a package directory of its own, inside its HOME (which
@@ -792,6 +994,11 @@ if (mode === "--list") {
   const extra = fs.existsSync(DB_DIR) ? fs.readdirSync(DB_DIR).filter((name) => !files.has(path.join(DB_DIR, name))) : [];
   if (stale.length || extra.length) {
     console.error(`not what rs/parity.gen.mjs writes: ${[...stale, ...extra.map((name) => `rs/parity/db/${name}`)].join(", ")}`);
+    process.exit(1);
+  }
+  const missing = KEPT.filter((name) => !fs.existsSync(path.join(HERE, "parity", "rows", `${name}.json`)));
+  if (missing.length) {
+    console.error(`missing: ${missing.map((name) => `rs/parity/rows/${name}.json`).join(", ")}`);
     process.exit(1);
   }
 } else {

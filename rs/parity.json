@@ -6177,6 +6177,4636 @@
         "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
       ],
       "handback": "yargs's usage error"
+    },
+    {
+      "name": "search query: blanks around a word",
+      "args": [
+        "search",
+        " plan "
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: a line end after a word",
+      "args": [
+        "search",
+        "plan\n"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: a tab between words",
+      "args": [
+        "search",
+        "plan\tretro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: a line end between words",
+      "args": [
+        "search",
+        "plan\nretro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: null",
+      "args": [
+        "search",
+        "null"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: undefined",
+      "args": [
+        "search",
+        "undefined"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: 1.0",
+      "args": [
+        "search",
+        "1.0"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: .5",
+      "args": [
+        "search",
+        ".5"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: +5",
+      "args": [
+        "search",
+        "+5"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: 0",
+      "args": [
+        "search",
+        "0"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: a number past 2^53",
+      "args": [
+        "search",
+        "9007199254740993"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: 0b11",
+      "args": [
+        "search",
+        "0b11"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: __proto__",
+      "args": [
+        "search",
+        "__proto__"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: constructor",
+      "args": [
+        "search",
+        "constructor"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: $0",
+      "args": [
+        "search",
+        "$0"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: a backslash",
+      "args": [
+        "search",
+        "\\"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: %s",
+      "args": [
+        "search",
+        "%s"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: an asterisk",
+      "args": [
+        "search",
+        "*"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: eight words",
+      "args": [
+        "search",
+        "a b c d e f g h"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: a hash alone",
+      "args": [
+        "search",
+        "#"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: tag: alone",
+      "args": [
+        "search",
+        "tag:"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search query: a=b at the front",
+      "args": [
+        "search",
+        "=plan"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"plan AND NOT project\"",
+      "args": [
+        "search",
+        "plan AND NOT project"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"NOT plan\"",
+      "args": [
+        "search",
+        "NOT plan"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"plan NOT (project OR batter)\"",
+      "args": [
+        "search",
+        "plan NOT (project OR batter)"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"^plan OR zzz\"",
+      "args": [
+        "search",
+        "^plan OR zzz"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"title : plan OR zzz\"",
+      "args": [
+        "search",
+        "title : plan OR zzz"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"{title body} : plan OR zzz\"",
+      "args": [
+        "search",
+        "{title body} : plan OR zzz"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"{title}: plan NOT retro\"",
+      "args": [
+        "search",
+        "{title}: plan NOT retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"- title : plan OR zzz\"",
+      "args": [
+        "search",
+        "- title : plan OR zzz"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search expression: \"plan + of + record OR zzz\"",
+      "args": [
+        "search",
+        "plan + of + record OR zzz"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"NEAR(plan project) OR zzz\"",
+      "args": [
+        "search",
+        "NEAR(plan project) OR zzz"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"NEAR(\\\"project plan\\\" timeline, 10) OR zzz\"",
+      "args": [
+        "search",
+        "NEAR(\"project plan\" timeline, 10) OR zzz"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"pl* AND ret*\"",
+      "args": [
+        "search",
+        "pl* AND ret*"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"plan AND AND retro\"",
+      "args": [
+        "search",
+        "plan AND AND retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"and\"",
+      "args": [
+        "search",
+        "and"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"plan or\"",
+      "args": [
+        "search",
+        "plan or"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"plan.or.retro\"",
+      "args": [
+        "search",
+        "plan.or.retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"body:plan AND title:retro\"",
+      "args": [
+        "search",
+        "body:plan AND title:retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"rowid:1 OR plan\"",
+      "args": [
+        "search",
+        "rowid:1 OR plan"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"plan OR alice's\"",
+      "args": [
+        "search",
+        "plan OR alice's"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"plan OR é\"",
+      "args": [
+        "search",
+        "plan OR é"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"((plan OR retro))\"",
+      "args": [
+        "search",
+        "((plan OR retro))"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"\\\"plan\\\" OR \\\"retro\\\"\"",
+      "args": [
+        "search",
+        "\"plan\" OR \"retro\""
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"plan AND \\\"of record\\\"\"",
+      "args": [
+        "search",
+        "plan AND \"of record\""
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"plan* OR *plan\"",
+      "args": [
+        "search",
+        "plan* OR *plan"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"plan\\nOR\\tretro\"",
+      "args": [
+        "search",
+        "plan\nOR\tretro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"#todo plan OR milk\"",
+      "args": [
+        "search",
+        "#todo plan OR milk"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"tag:star AND retro\"",
+      "args": [
+        "search",
+        "tag:star AND retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"#todo OR #done\"",
+      "args": [
+        "search",
+        "#todo OR #done"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "FTS5 rejects it and the TypeScript reads the section files instead"
+    },
+    {
+      "name": "search expression: \"title:\\\"weekly sync\\\" OR zzz\"",
+      "args": [
+        "search",
+        "title:\"weekly sync\" OR zzz"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search expression: \"plan NOT plan\"",
+      "args": [
+        "search",
+        "plan NOT plan"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: a notebook that is one blank",
+      "args": [
+        "search",
+        "plan",
+        "-n",
+        " "
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: a notebook that is one quote",
+      "args": [
+        "search",
+        "plan",
+        "-n",
+        "'"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: a quote at the front of a notebook",
+      "args": [
+        "search",
+        "plan",
+        "-n",
+        "'Work"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: a quote inside a notebook",
+      "args": [
+        "search",
+        "plan",
+        "-n",
+        "Wo\"rk"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: a quote at the end of a section",
+      "args": [
+        "search",
+        "plan",
+        "-s",
+        "Meet'"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: a quote at the front of an account",
+      "args": [
+        "search",
+        "plan",
+        "-a",
+        "\"alice@example.com"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since in quotes is text",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "\"2026-01-01\""
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since with milliseconds is text",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "2026-01-01T00:00:00.000Z"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since a leap day",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "2024-02-29"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since the year 1",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "0001-01-01"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "Rust reads a day only in the years 1000 to 9999"
+    },
+    {
+      "name": "search options: since the year 999",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "0999-12-31"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "Rust reads a day only in the years 1000 to 9999"
+    },
+    {
+      "name": "search options: since the last day of 9999",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "9999-12-31"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since 0m",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "0m"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since 00030d",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "00030d"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "Rust counts back at most 9999 units"
+    },
+    {
+      "name": "search options: since 9999m",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "9999m"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a span that reaches back before 1970, where the two time zone databases were not compared"
+    },
+    {
+      "name": "search options: since 9999y",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "9999y"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a span that reaches back before 1970, where the two time zone databases were not compared"
+    },
+    {
+      "name": "search options: since 1026y",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "1026y"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a span that reaches back before 1970, where the two time zone databases were not compared"
+    },
+    {
+      "name": "search options: since 30d and a line end",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "30d\n"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since in fullwidth digits",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "３０d"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since with a blank in front",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        " 30d"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since 2026-1-1",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "2026-1-1"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since true",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "true"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since 0",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "0"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since 1e3",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "1e3"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: since empty",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        ""
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search options: the limit before the query",
+      "args": [
+        "search",
+        "-l",
+        "3",
+        "plan"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: limit, offset and max-lines with =",
+      "args": [
+        "search",
+        "--limit=3",
+        "--offset=1",
+        "plan",
+        "-m",
+        "2"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: the largest offset",
+      "args": [
+        "search",
+        "plan",
+        "-p",
+        "999999999"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: the largest max-lines",
+      "args": [
+        "search",
+        "#todo",
+        "-m",
+        "999999999"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: -m 2 grouped",
+      "args": [
+        "search",
+        "#todo",
+        "-m",
+        "2",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: -g and then 1 as the query",
+      "args": [
+        "search",
+        "-g",
+        "1"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: -c and then 0 as the query",
+      "args": [
+        "search",
+        "-c",
+        "0"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: --compact --group -l 4",
+      "args": [
+        "search",
+        "plan",
+        "--compact",
+        "--group",
+        "-l",
+        "4"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: every filter, grouped",
+      "args": [
+        "search",
+        "plan",
+        "-n",
+        "Work",
+        "-s",
+        "Meetings",
+        "-a",
+        "alice@example.com",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: a notebook with %",
+      "args": [
+        "search",
+        "plan",
+        "--notebook",
+        "W%k"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: a section of seven _",
+      "args": [
+        "search",
+        "plan",
+        "--section",
+        "_______"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: a notebook with a line end",
+      "args": [
+        "search",
+        "plan",
+        "--notebook",
+        "Work\n"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: an account with a blank after it",
+      "args": [
+        "search",
+        "plan",
+        "--account",
+        "alice@example.com "
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search options: --Max-Lines",
+      "args": [
+        "search",
+        "plan",
+        "--Max-Lines",
+        "3"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search options: --LIMIT",
+      "args": [
+        "search",
+        "plan",
+        "--LIMIT",
+        "3"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search options: -G",
+      "args": [
+        "search",
+        "plan",
+        "-G"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search options: a limit with a blank after it",
+      "args": [
+        "search",
+        "plan",
+        "--limit",
+        "3 "
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search options: a limit with a plus",
+      "args": [
+        "search",
+        "plan",
+        "--limit",
+        "+3"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search options: a limit in fullwidth digits",
+      "args": [
+        "search",
+        "plan",
+        "--limit",
+        "３"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search options: an offset of 00",
+      "args": [
+        "search",
+        "plan",
+        "--offset",
+        "00"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search options: -v after the query",
+      "args": [
+        "search",
+        "plan",
+        "-v"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search options: --online=false",
+      "args": [
+        "search",
+        "plan",
+        "--online=false"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search options: --no-online",
+      "args": [
+        "search",
+        "plan",
+        "--no-online"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "search rows: \"zeta\" flat",
+      "args": [
+        "search",
+        "zeta"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"zeta\" compact",
+      "args": [
+        "search",
+        "zeta",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"zeta\" grouped",
+      "args": [
+        "search",
+        "zeta",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"ZETA\" flat",
+      "args": [
+        "search",
+        "ZETA"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"ZETA\" compact",
+      "args": [
+        "search",
+        "ZETA",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"ZETA\" grouped",
+      "args": [
+        "search",
+        "ZETA",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#todo\" flat",
+      "args": [
+        "search",
+        "#todo"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#todo\" compact",
+      "args": [
+        "search",
+        "#todo",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#todo\" grouped",
+      "args": [
+        "search",
+        "#todo",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#done\" flat",
+      "args": [
+        "search",
+        "#done"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#done\" compact",
+      "args": [
+        "search",
+        "#done",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#done\" grouped",
+      "args": [
+        "search",
+        "#done",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#checkbox\" flat",
+      "args": [
+        "search",
+        "#checkbox"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#checkbox\" compact",
+      "args": [
+        "search",
+        "#checkbox",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#checkbox\" grouped",
+      "args": [
+        "search",
+        "#checkbox",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#star\" flat",
+      "args": [
+        "search",
+        "#star"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#star\" compact",
+      "args": [
+        "search",
+        "#star",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#star\" grouped",
+      "args": [
+        "search",
+        "#star",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#todo zeta\" flat",
+      "args": [
+        "search",
+        "#todo zeta"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#todo zeta\" compact",
+      "args": [
+        "search",
+        "#todo zeta",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"#todo zeta\" grouped",
+      "args": [
+        "search",
+        "#todo zeta",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"\\\"\\\"\" flat",
+      "args": [
+        "search",
+        "\"\""
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"\\\"\\\"\" compact",
+      "args": [
+        "search",
+        "\"\"",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"\\\"\\\"\" grouped",
+      "args": [
+        "search",
+        "\"\"",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"kelvin\" flat",
+      "args": [
+        "search",
+        "kelvin"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"kelvin\" compact",
+      "args": [
+        "search",
+        "kelvin",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"kelvin\" grouped",
+      "args": [
+        "search",
+        "kelvin",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"İstanbul\" flat",
+      "args": [
+        "search",
+        "İstanbul"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"İstanbul\" compact",
+      "args": [
+        "search",
+        "İstanbul",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"İstanbul\" grouped",
+      "args": [
+        "search",
+        "İstanbul",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"one\" flat",
+      "args": [
+        "search",
+        "one"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"one\" compact",
+      "args": [
+        "search",
+        "one",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"one\" grouped",
+      "args": [
+        "search",
+        "one",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"ſtar\" flat",
+      "args": [
+        "search",
+        "ſtar"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"ſtar\" compact",
+      "args": [
+        "search",
+        "ſtar",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search rows: \"ſtar\" grouped",
+      "args": [
+        "search",
+        "ſtar",
+        "-g"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/odd-rows.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search ties: the first half, compact",
+      "args": [
+        "search",
+        "omega",
+        "-l",
+        "150",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/ties.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search ties: the second half, compact",
+      "args": [
+        "search",
+        "omega",
+        "-l",
+        "150",
+        "-p",
+        "150",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/ties.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search ties: a window, compact",
+      "args": [
+        "search",
+        "omega",
+        "-l",
+        "40",
+        "-p",
+        "37",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/ties.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search ties: tags, all",
+      "args": [
+        "search",
+        "#todo",
+        "-l",
+        "300",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/ties.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search ties: tags, a window",
+      "args": [
+        "search",
+        "#todo",
+        "-l",
+        "25",
+        "-p",
+        "13"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/ties.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search ties: no query, the first half",
+      "args": [
+        "search",
+        "\"\"",
+        "-l",
+        "150",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/ties.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search ties: no query, the second half",
+      "args": [
+        "search",
+        "\"\"",
+        "-l",
+        "150",
+        "-p",
+        "150",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/ties.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search ties: a prefix",
+      "args": [
+        "search",
+        "unique*",
+        "-l",
+        "300",
+        "-c"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/ties.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search ties: grouped",
+      "args": [
+        "search",
+        "omega",
+        "-g",
+        "-l",
+        "120"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/rows/ties.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Asia/Calcutta",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Asia/Calcutta"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Europe/Kiev",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Europe/Kiev"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Antarctica/Troll",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Antarctica/Troll"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: EST",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "EST"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: EST5EDT",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "EST5EDT"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Factory",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Factory"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Etc/GMT-14",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Etc/GMT-14"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: GMT0",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "GMT0"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: America/Ciudad_Juarez",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Ciudad_Juarez"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Pacific/Kanton",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Pacific/Kanton"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Europe/Kyiv",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Europe/Kyiv"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: TZ=\"UTC0\"",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC0"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime reads rules, paths and other spellings its own way; Rust takes zone names only"
+    },
+    {
+      "name": "search time: TZ=\"utc\"",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "utc"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime reads rules, paths and other spellings its own way; Rust takes zone names only"
+    },
+    {
+      "name": "search time: TZ=\"Z\"",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Z"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime reads rules, paths and other spellings its own way; Rust takes zone names only"
+    },
+    {
+      "name": "search time: TZ=\"localtime\"",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "localtime"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime reads rules, paths and other spellings its own way; Rust takes zone names only"
+    },
+    {
+      "name": "search time: TZ=\"posix/Asia/Tokyo\"",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "posix/Asia/Tokyo"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime reads rules, paths and other spellings its own way; Rust takes zone names only"
+    },
+    {
+      "name": "search time: TZ=\"Asia/Tokyo \"",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Asia/Tokyo "
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime reads rules, paths and other spellings its own way; Rust takes zone names only"
+    },
+    {
+      "name": "search time: TZ=\"Etc/Unknown\"",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Etc/Unknown"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime reads rules, paths and other spellings its own way; Rust takes zone names only"
+    },
+    {
+      "name": "search time: TZ=\"SystemV/EST5\"",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "SystemV/EST5"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime reads rules, paths and other spellings its own way; Rust takes zone names only"
+    },
+    {
+      "name": "search env: LANG=de_DE.UTF-8",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "LANG": "de_DE.UTF-8"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search env: LC_ALL=ja_JP.UTF-8",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "LC_ALL": "ja_JP.UTF-8"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search env: LC_ALL=C",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "LC_ALL": "C"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search env: LC_TIME=fr_FR.UTF-8",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "LC_TIME": "fr_FR.UTF-8"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search env: LANGUAGE=fr",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "LANGUAGE": "fr"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search env: FORCE_COLOR=1",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "FORCE_COLOR": "1"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search env: NO_COLOR=1",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "NO_COLOR": "1"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search env: DEBUG=*",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "DEBUG": "*"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search env: NODE_NO_WARNINGS=1",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "NODE_NO_WARNINGS": "1"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "search env: TZDIR=/nonexistent",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "TZDIR": "/nonexistent"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search env: ICU_TIMEZONE_FILES_DIR=/nonexistent",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "ICU_TIMEZONE_FILES_DIR": "/nonexistent"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "search env: COLUMNS=20",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "COLUMNS": "20"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search state: a package directory with blanks and letters outside ASCII",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "ONENOTE_CLI_PACKAGE_ROOT": "<HOME>/my pkg ü 日本"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search state: a package directory with # and %41",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "ONENOTE_CLI_PACKAGE_ROOT": "<HOME>/c#%41&x=1"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search state: .env here is a link to a file that sets TZ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "files": {
+        "real.env": "TZ=Asia/Tokyo\n"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z",
+        "ln -s real.env .env"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "bun loads it, and TZ changes the time in the last line"
+    },
+    {
+      "name": "search state: .env here is a directory",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z",
+        "mkdir .env"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a .env that is not a file is not looked into"
+    },
+    {
+      "name": "search state: .env.test.local here sets TZ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "files": {
+        ".env.test.local": "TZ=Asia/Tokyo\n"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "every .env file bun might load is looked at, whatever NODE_ENV is"
+    },
+    {
+      "name": "search state: a .env here with CRLF and no letters that matter",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "files": {
+        ".env": "FOO=bar\r\nONENOTE_CLIENT_ID=x\r\n"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search state: the index's time has a fraction",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z",
+        "touch -d '2026-03-08 09:05:07.9996 UTC' \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the last millisecond of a second is left to the runtime, which rounds the file's time its own way"
+    },
+    {
+      "name": "auth setup: LANG=de_DE.UTF-8",
+      "args": [
+        "auth",
+        "setup"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "LANG": "de_DE.UTF-8"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\""
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "auth setup: an empty argument after it",
+      "args": [
+        "auth",
+        "setup",
+        ""
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\""
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a command line Rust does not read; yargs does"
+    },
+    {
+      "name": "auth setup: a package directory with blanks",
+      "args": [
+        "auth",
+        "setup"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "ONENOTE_CLI_PACKAGE_ROOT": "<HOME>/my pkg"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\""
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: America/Vancouver on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Vancouver"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: America/Edmonton on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Edmonton"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: America/Winnipeg on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Winnipeg"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Canada/Pacific on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Canada/Pacific"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: America/Havana on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Havana"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Africa/Casablanca on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Africa/Casablanca"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: America/Inuvik on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Inuvik"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: America/Yellowknife on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Yellowknife"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: America/Rainy_River on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Rainy_River"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Canada/Mountain on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Canada/Mountain"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Canada/Central on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Canada/Central"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Cuba on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Cuba"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Africa/El_Aaiun on 2026-11-27, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Africa/El_Aaiun"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-11-27T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Bogota on 1992-05-02, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Bogota"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 1992-05-02T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Tehran on 1979-05-25, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Asia/Tehran"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 1979-05-25T21:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Iran on 1979-05-25, where the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Iran"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 1979-05-25T21:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Vancouver before the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Vancouver"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Vancouver, the last second before the margin",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Vancouver"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-10-29T08:59:59Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Vancouver, the first second of the margin",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Vancouver"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-10-29T09:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search time: Casablanca before the databases differ",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Africa/Casablanca"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Havana after the winter the databases differ on",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Havana"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2027-06-01T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Bogota today",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Bogota"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Bogota a week after the day the databases differ on",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "America/Bogota"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 1992-05-09T12:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: Tehran today",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "Asia/Tehran"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search since: a span in Vancouver, where the databases differ from November 2026 on",
+      "args": [
+        "search",
+        "boundary",
+        "--since",
+        "100d"
+      ],
+      "env": {
+        "TZ": "America/Vancouver"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "printf '[{\"notebook\":\"N\",\"section\":\"S\",\"title\":\"Edge page\",\"body\":\"boundary marker text\",\"last_modified\":\"%s\"}]' \"$(date -u -d '100 days ago 30 minutes ago' +%Y-%m-%dT%H:%M:%SZ)\" > edge.json && bun \"<REPO>/rs/parity/make-db.ts\" edge.json --mtime 2026-03-08T09:05:07Z && rm edge.json"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search since: thirty days back in Edmonton",
+      "args": [
+        "search",
+        "era",
+        "--since",
+        "30d"
+      ],
+      "env": {
+        "TZ": "America/Edmonton"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/ages.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the runtime's time zone database and the one compiled in differ for this zone at this time"
+    },
+    {
+      "name": "search since: thirty days back in Bogota",
+      "args": [
+        "search",
+        "era",
+        "--since",
+        "30d"
+      ],
+      "env": {
+        "TZ": "America/Bogota"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/ages.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search since: a day in Vancouver needs no zone",
+      "args": [
+        "search",
+        "plan",
+        "--since",
+        "2026-02-15"
+      ],
+      "env": {
+        "TZ": "America/Vancouver"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search since: ninety-nine years back",
+      "args": [
+        "search",
+        "era",
+        "--since",
+        "99y"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/ages.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a span that reaches back before 1970, where the two time zone databases were not compared"
+    },
+    {
+      "name": "search time: the last second that was compared",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2099-12-31T23:59:59Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search time: the year 2100",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2100-01-01T00:00:00Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the time zone databases were compared for 1970 to 2099"
+    },
+    {
+      "name": "search time: an index from before 1970",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 1969-12-31T23:59:59Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the time zone databases were compared for 1970 to 2099"
+    },
+    {
+      "name": "search state: the index's time is just short of the last millisecond",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z",
+        "touch -d '2026-03-08 09:05:07.998999999 UTC' \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search state: the index's time is in the last millisecond",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z",
+        "touch -d '2026-03-08 09:05:07.999 UTC' \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the last millisecond of a second is left to the runtime, which rounds the file's time its own way"
+    },
+    {
+      "name": "search state: the index's time is 120 ns short of the next second",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z",
+        "touch -d '2026-03-08 09:05:07.999999900 UTC' \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the last millisecond of a second is left to the runtime, which rounds the file's time its own way"
+    },
+    {
+      "name": "search env: BUN_JSC_dumpOptions=1 makes the engine list its options",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "BUN_JSC_dumpOptions": "1"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "auth setup: BUN_JSC_dumpOptions=1 makes the engine list its options",
+      "args": [
+        "auth",
+        "setup"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "BUN_JSC_dumpOptions": "1"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\""
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "search env: NODE_DEBUG=http makes the runtime warn",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "NODE_DEBUG": "http"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "normalize": [
+        [
+          "\\(node:\\d+\\)",
+          "(node:<PID>)"
+        ]
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "auth setup: NODE_DEBUG=http makes the runtime warn",
+      "args": [
+        "auth",
+        "setup"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "NODE_DEBUG": "http"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\""
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "normalize": [
+        [
+          "\\(node:\\d+\\)",
+          "(node:<PID>)"
+        ]
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "search env: a transpiler cache directory, which the runtime fills",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "BUN_RUNTIME_TRANSPILER_CACHE_PATH": "<HOME>/transpiled"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "search env: BUN_ENV",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "BUN_ENV": "production"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "search env: MIMALLOC_SHOW_ERRORS=1",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "MIMALLOC_SHOW_ERRORS": "1"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "search env: NODE_EXTRA_CA_CERTS",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "NODE_EXTRA_CA_CERTS": "/nonexistent.pem"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "search env: ICU_DATA",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "ICU_DATA": "/nonexistent"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "search env: node_debug in small letters",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "node_debug": "http"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated"
+    },
+    {
+      "name": "search env: BUN_INSTALL, as bun's installer sets it",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "BUN_INSTALL": "<HOME>/.bun"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "auth setup: BUN_INSTALL, as bun's installer sets it",
+      "args": [
+        "auth",
+        "setup"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "BUN_INSTALL": "<HOME>/.bun"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\""
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search env: NODE and npm_config_user_agent, as a package script has them",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "NODE": "/usr/bin/node",
+        "npm_config_user_agent": "bun/1.4.0 npm/? node/v26.3.0 linux x64"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search state: a .env here that sets MIMALLOC_VERBOSE comes too late for the allocator",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "files": {
+        ".env": "MIMALLOC_VERBOSE=1\n"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search state: a .env here that names ICU's data directory",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "files": {
+        ".env": "ICU_TIMEZONE_FILES_DIR=/nonexistent\n"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ],
+      "handback": "the letters ICU anywhere in the file are enough to step aside"
+    },
+    {
+      "name": "search state: a package directory with ? in its name cannot be loaded",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "ONENOTE_CLI_PACKAGE_ROOT": "<HOME>/what?"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "auth setup: a package directory with ? in its name cannot be loaded",
+      "args": [
+        "auth",
+        "setup"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "ONENOTE_CLI_PACKAGE_ROOT": "<HOME>/what?"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\""
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search state: a package directory with a backslash in its name cannot be loaded",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "ONENOTE_CLI_PACKAGE_ROOT": "<HOME>/back\\slash"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
+    },
+    {
+      "name": "search state: a package directory that is a link to one with ? in its name",
+      "args": [
+        "search",
+        "retro"
+      ],
+      "env": {
+        "TZ": "UTC",
+        "ONENOTE_CLI_PACKAGE_ROOT": "<HOME>/link"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/notes.json\" --mtime 2026-03-08T09:05:07Z",
+        "if [ -d \"<HOME>/link\" ]; then mv \"<HOME>/link\" \"<HOME>/real?dir\" && ln -s \"real?dir\" \"<HOME>/link\"; fi"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "find \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db 2>&1"
+      ]
     }
   ]
 }
