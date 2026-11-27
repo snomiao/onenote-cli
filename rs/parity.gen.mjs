@@ -1093,12 +1093,22 @@ if (mode === "--groups") {
   console.log("linux darwin win32");
   for (const c of cases) console.log(`${["linux", "darwin", "win32"].map((system) => on(c, system).padEnd(4)).join(" ")}  ${c.name}`);
 } else if (mode === "--check") {
-  const stale = [...files].filter(([file, content]) => !fs.existsSync(file) || fs.readFileSync(file, "utf8") !== content).map(([file]) => path.relative(process.cwd(), file));
+  const read = (file) => (fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null);
+  const stale = [...files].filter(([file, content]) => read(file) !== content);
   const extra = fs.existsSync(DB_DIR) ? fs.readdirSync(DB_DIR).filter((name) => !files.has(path.join(DB_DIR, name))) : [];
-  if (stale.length || extra.length) {
-    console.error(`not what rs/parity.gen.mjs writes: ${[...stale, ...extra.map((name) => `rs/parity/db/${name}`)].join(", ")}`);
-    process.exit(1);
+  // A checkout that wrote LF as CR LF (core.autocrlf, as on GitHub's Windows
+  // runners) is not a stale file but a checkout to make again: .gitattributes
+  // keeps rs/ at LF, and also what the binary compiles in (rs/src/*.txt).
+  const crlf = stale.filter(([file, content]) => read(file)?.replace(/\r\n/g, "\n") === content);
+  const named = (list) => list.map(([file]) => path.relative(process.cwd(), file)).join(", ");
+  if (crlf.length) {
+    console.error(`CR LF line ends where rs/parity.gen.mjs writes LF: ${named(crlf)}. .gitattributes keeps rs/ at LF; a checkout made without it needs rs/ checked out again.`);
   }
+  if (stale.length > crlf.length || extra.length) {
+    const other = stale.filter((entry) => !crlf.includes(entry));
+    console.error(`not what rs/parity.gen.mjs writes: ${[named(other), ...extra.map((name) => `rs/parity/db/${name}`)].filter(Boolean).join(", ")}`);
+  }
+  if (stale.length || extra.length) process.exit(1);
   const missing = KEPT.filter((name) => !fs.existsSync(path.join(HERE, "parity", "rows", `${name}.json`)));
   if (missing.length) {
     console.error(`missing: ${missing.map((name) => `rs/parity/rows/${name}.json`).join(", ")}`);
