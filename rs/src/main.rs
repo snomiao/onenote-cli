@@ -29,8 +29,7 @@ const JS_ENTRY: &str = "src/index.ts";
 /// returned before the first output. Nothing has been changed by then
 /// either, except that SQLite may have put its `-shm` and `-wal` files
 /// beside an index it was asked to read, as it does for the TypeScript.
-#[derive(Debug, PartialEq)]
-pub struct HandBack;
+pub use js_fallback::HandBack;
 
 /// `ONENOTE_CLI_NO_NATIVE=1` hands every command back to the JavaScript: the way
 /// out for a user if a ported command misbehaves.
@@ -114,12 +113,10 @@ fn auth_setup() -> Result<String, HandBack> {
 
 /// Runs a ported command. It works out everything it will print before
 /// printing any of it, so `HandBack` (and a bug that makes it panic) leaves
-/// nothing behind and the JavaScript can do the whole invocation.
-fn answer(command: impl FnOnce() -> Result<String, HandBack> + std::panic::UnwindSafe) {
-    std::panic::set_hook(Box::new(|_| {}));
-    let result = std::panic::catch_unwind(command);
-    let _ = std::panic::take_hook();
-    if let Ok(Ok(output)) = result {
+/// nothing behind and the JavaScript can do the whole invocation
+/// (`js_fallback::attempt`).
+fn answer(command: impl FnOnce() -> Result<String, HandBack>) {
+    if let Some(output) = js_fallback::attempt(command) {
         let mut stdout = std::io::stdout().lock();
         // A reader that has gone away (`| head`) is not an error.
         let _ = stdout.write_all(output.as_bytes()).and_then(|()| stdout.flush());
