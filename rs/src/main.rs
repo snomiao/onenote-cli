@@ -60,8 +60,28 @@ fn machine() -> Result<Machine, HandBack> {
         return Err(HandBack);
     }
     let package_root = js_fallback::package_root().ok_or(HandBack)?;
+    if !loadable(&package_root) {
+        return Err(HandBack);
+    }
     runtime::plain(&package_root)?;
     Ok(Machine { package_root, terminal })
+}
+
+/// Whether the runtime can load the program from that directory. bun 1.4.0
+/// cannot when the path, or the path its links lead to, has a `?` or a `\`
+/// in it (it takes the one for the start of a query and the other for a
+/// `/`): the TypeScript then ends with `Module not found` before its first
+/// line, and so must this.
+#[cfg(unix)]
+fn loadable(package_root: &std::path::Path) -> bool {
+    let plain = |path: &std::path::Path| !path.as_os_str().as_encoded_bytes().iter().any(|byte| matches!(byte, b'?' | b'\\'));
+    std::fs::canonicalize(package_root).is_ok_and(|real| plain(package_root) && plain(&real))
+}
+
+/// On Windows a `\` separates directories and a `?` cannot be in a name.
+#[cfg(not(unix))]
+fn loadable(_package_root: &std::path::Path) -> bool {
+    true
 }
 
 /// `onenote search <query>`: what it prints, or `HandBack`.
