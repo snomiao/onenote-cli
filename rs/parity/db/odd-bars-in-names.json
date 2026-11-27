@@ -1,0 +1,16 @@
+[
+ {
+  "page_guid": "00000186-0000-4000-8000-000000000186",
+  "notebook": "c",
+  "section": "a|b",
+  "title": "First",
+  "body": "oddity here"
+ },
+ {
+  "page_guid": "00000187-0000-4000-8000-000000000187",
+  "notebook": "b|c",
+  "section": "a",
+  "title": "Second",
+  "body": "oddity here"
+ }
+]

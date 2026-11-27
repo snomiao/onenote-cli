@@ -1,0 +1,288 @@
+[
+ {
+  "page_guid": "00000001-0000-4000-8000-000000000001",
+  "notebook": "Work",
+  "section": "Meetings",
+  "account": "alice@example.com",
+  "title": "Weekly sync",
+  "body": "Weekly sync\nDiscussed the project plan for Q3 and the migration timeline with the platform team.\nAction items below.\nAlice to draft the plan by Friday.",
+  "web_url": "https://contoso.sharepoint.com/sites/eng/_layouts/15/Doc.aspx?sourcedoc=%7B9f1c2b3a-0000-4000-8000-aaaaaaaaaaaa%7D&file=Meetings.one&action=edit&wd=target%28Meetings.one%7C9f1c2b3a-1111-4111-8111-bbbbbbbbbbbb%2FWeekly%20sync%7C11111111-1111-4111-8111-111111111111%2F%29",
+  "has_todo": 1,
+  "has_done": 0,
+  "tags": "|to-do|",
+  "tag_lines": [
+   {
+    "tag": "to-do",
+    "text": "Draft the plan"
+   },
+   {
+    "tag": "to-do",
+    "text": "Book the room"
+   }
+  ],
+  "last_modified": "2026-03-01T10:00:00Z"
+ },
+ {
+  "page_guid": "00000002-0000-4000-8000-000000000002",
+  "notebook": "Work",
+  "section": "Meetings",
+  "account": "alice@example.com",
+  "title": "Retro",
+  "body": "Retro\nWhat went well: shipping on time.\nWhat did not: the plan slipped twice.",
+  "web_url": "",
+  "has_todo": 0,
+  "has_done": 1,
+  "tags": "|star|to-do:completed|",
+  "tag_lines": [
+   {
+    "tag": "to-do:completed",
+    "text": "Ship it"
+   },
+   {
+    "tag": "star",
+    "text": "Great work everyone"
+   }
+  ],
+  "last_modified": "2026-02-01T08:30:00.1234567Z"
+ },
+ {
+  "page_guid": "00000003-0000-4000-8000-000000000003",
+  "notebook": "Work",
+  "section": "Meetings",
+  "account": "alice@example.com",
+  "title": "Offsite",
+  "body": "Offsite\nWe are meeting in the mountains this spring for three days of workshops and the plan is to split into four groups, each owning one theme, and to end every day with a short demo of what the group built so far.",
+  "web_url": "https://contoso.sharepoint.com/sites/eng/_layouts/15/Doc.aspx?sourcedoc=%7B9f1c2b3a-0000-4000-8000-aaaaaaaaaaaa%7D&file=Meetings.one&action=edit&wd=target%28Meetings.one%7C9f1c2b3a-1111-4111-8111-bbbbbbbbbbbb%2FOffsite%7C33333333-3333-4333-8333-333333333333%2F%29",
+  "has_todo": 0,
+  "has_done": 0,
+  "last_modified": "2026-01-15T23:30:00-05:00"
+ },
+ {
+  "page_guid": "00000004-0000-4000-8000-000000000004",
+  "notebook": "Work",
+  "section": "Projects",
+  "account": "alice@example.com",
+  "title": "Roadmap 2026",
+  "body": "<p>Roadmap &amp; milestones</p>\n<span style=\"color:red\">Plan B &lt;draft&gt;</span> for the launch&nbsp;window",
+  "web_url": "https://contoso.sharepoint.com/sites/eng/_layouts/15/Doc.aspx?sourcedoc=%7B9f1c2b3a-0000-4000-8000-aaaaaaaaaaaa%7D&file=Meetings.one&action=edit&wd=target%28Meetings.one%7C9f1c2b3a-1111-4111-8111-bbbbbbbbbbbb%2FRoadmap%202026%7C44444444-4444-4444-8444-444444444444%2F%29",
+  "has_todo": 0,
+  "has_done": 0,
+  "tags": "|important|question|",
+  "tag_lines": [
+   {
+    "tag": "important",
+    "text": "Launch window"
+   },
+   {
+    "tag": "question",
+    "text": "Who owns plan B?"
+   }
+  ],
+  "last_modified": "2026-02-20T00:30:00+09:00"
+ },
+ {
+  "page_guid": "00000005-0000-4000-8000-000000000005",
+  "notebook": "Work",
+  "section": "Projects",
+  "account": "alice@example.com",
+  "title": ".jpg",
+  "body": "plan diagram image",
+  "has_todo": 0,
+  "has_done": 0,
+  "last_modified": "2026-02-20T09:00:00Z"
+ },
+ {
+  "page_guid": "00000006-0000-4000-8000-000000000006",
+  "notebook": "Work",
+  "section": "Projects",
+  "account": "alice@example.com",
+  "title": "؀؁؂؃؄؅ab",
+  "body": "plan garbage title",
+  "has_todo": 0,
+  "has_done": 0,
+  "last_modified": "2026-02-20T09:00:00Z"
+ },
+ {
+  "page_guid": "00000007-0000-4000-8000-000000000007",
+  "notebook": "Work",
+  "section": "Meetings",
+  "account": "bob@contoso.com",
+  "title": "1:1 with Alice",
+  "body": "1:1 with Alice\nPlan review and career chat.",
+  "tags": "|discuss-with-manager|",
+  "tag_lines": [
+   {
+    "tag": "discuss-with-manager",
+    "text": "Promotion timeline"
+   }
+  ],
+  "web_url": "https://contoso-my.sharepoint.com/personal/bob/_layouts/15/Doc.aspx?sourcedoc={55555555-5555-4555-8555-555555555555}&wd=target(Meetings.one|/1:1 with Alice|55555555-0000-4000-8000-000000000000/)",
+  "has_todo": 0,
+  "has_done": 0,
+  "last_modified": "2026-03-02T16:45:00Z"
+ },
+ {
+  "page_guid": "00000008-0000-4000-8000-000000000008",
+  "notebook": "Home",
+  "section": "Recipes",
+  "account": "bob@contoso.com",
+  "title": "Pancakes",
+  "body": "Pancakes\nFlour, eggs, milk.\nPlan ahead: rest the batter for 30 minutes.",
+  "web_url": "https://onedrive.live.com/redir?resid=ABC123%21456&page=Edit&wd=target%28Recipes.one%7C%2FPancakes%7C66666666-6666-4666-8666-666666666666%2F%29",
+  "has_todo": 0,
+  "has_done": 0,
+  "tags": "|book-to-read|remember-for-later|",
+  "tag_lines": [
+   {
+    "tag": "remember-for-later",
+    "text": "Buy maple syrup"
+   },
+   {
+    "tag": "book-to-read",
+    "text": "The Food Lab"
+   }
+  ],
+  "last_modified": "2025-12-24T18:00:00Z"
+ },
+ {
+  "page_guid": "00000009-0000-4000-8000-000000000009",
+  "notebook": "Home",
+  "section": "Recipes",
+  "account": "bob@contoso.com",
+  "title": "Shopping list",
+  "body": "milk eggs",
+  "web_url": "https://onedrive.live.com/redir?resid=ABC123%21457",
+  "has_todo": 1,
+  "has_done": 1,
+  "tags": "|to-do|to-do:completed|",
+  "tag_lines": [
+   {
+    "tag": "to-do",
+    "text": "Milk"
+   },
+   {
+    "tag": "to-do",
+    "text": "Eggs"
+   },
+   {
+    "tag": "to-do",
+    "text": "Flour"
+   },
+   {
+    "tag": "to-do",
+    "text": "Butter"
+   },
+   {
+    "tag": "to-do",
+    "text": "Maple syrup"
+   },
+   {
+    "tag": "to-do",
+    "text": "Blueberries"
+   },
+   {
+    "tag": "to-do",
+    "text": "Yeast"
+   },
+   {
+    "tag": "to-do:completed",
+    "text": "Sugar"
+   }
+  ],
+  "last_modified": "2026-03-05T07:00:00Z"
+ },
+ {
+  "page_guid": "00000010-0000-4000-8000-000000000010",
+  "notebook": "Home",
+  "section": "Travel",
+  "account": "bob@contoso.com",
+  "title": "Packing",
+  "body": "Packing\nPassport, charger, adapter and the travel plan printout.",
+  "has_todo": 0,
+  "has_done": 0,
+  "tags": "|discuss-with-manager|discuss-with-person-a|discuss-with-person-b|phone-number|",
+  "tag_lines": [
+   {
+    "tag": "discuss-with-person-a",
+    "text": "Who waters the plants"
+   },
+   {
+    "tag": "discuss-with-person-b",
+    "text": "Airport pickup"
+   },
+   {
+    "tag": "discuss-with-manager",
+    "text": "Days off"
+   },
+   {
+    "tag": "phone-number",
+    "text": "Hotel: +81 75 000 0000"
+   }
+  ],
+  "last_modified": "2026-01-02T03:04:05Z"
+ },
+ {
+  "page_guid": "00000011-0000-4000-8000-000000000011",
+  "notebook": "Home",
+  "section": "Travel",
+  "account": "bob@contoso.com",
+  "title": "Checklist",
+  "body": "short",
+  "has_todo": 1,
+  "has_done": 0,
+  "last_modified": "2026-01-03T00:00:00Z"
+ },
+ {
+  "page_guid": "00000012-0000-4000-8000-000000000012",
+  "notebook": "Home",
+  "section": "Travel",
+  "account": "bob@contoso.com",
+  "title": "Ideas",
+  "body": "Ideas for the next trip: islands, a night train, and a week without any plan at all, just a map and a pair of good shoes and a notebook.\nSecond line.",
+  "has_todo": 0,
+  "has_done": 0,
+  "tags": "|idea|",
+  "last_modified": "2026-01-04T00:00:00Z"
+ },
+ {
+  "page_guid": "00000013-0000-4000-8000-000000000013",
+  "notebook": "Home",
+  "section": "Travel",
+  "account": "bob@contoso.com",
+  "title": "Spark",
+  "body": "tiny",
+  "has_todo": 0,
+  "has_done": 0,
+  "tags": "|idea|",
+  "last_modified": "2026-01-05T00:00:00Z"
+ },
+ {
+  "page_guid": "00000014-0000-4000-8000-000000000014",
+  "notebook": "Archive",
+  "section": "Old",
+  "title": "Plan of record 2019",
+  "body": "The plan of record."
+ },
+ {
+  "page_guid": "00000015-0000-4000-8000-000000000015",
+  "notebook": "Archive",
+  "section": "Old",
+  "title": "(untitled)",
+  "body": "Loose notes without a plan or a title.",
+  "web_url": "https://d.docs.live.net/abc/Archive/Old.one"
+ },
+ {
+  "page_guid": "00000016-0000-4000-8000-000000000016",
+  "notebook": "Archive",
+  "section": "Old",
+  "title": "Oddments",
+  "body": "agent 007 reported 1e3 units, 0x10 in hex, a=b and c++; true or false; ls and search"
+ },
+ {
+  "page_guid": "00000017-0000-4000-8000-000000000017",
+  "notebook": "Archive",
+  "section": "Old",
+  "title": "Note to self",
+  "body": "This project still has no written plan."
+ }
+]
