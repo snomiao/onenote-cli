@@ -1,0 +1,5 @@
+# The npm package ships the TypeScript and, from the pipeline, the built
+# binaries. The crate's sources and its parity cases stay out of the tarball:
+# package.json has no `files` list, so without this file `npm publish` and
+# `bun publish` would pack the whole directory.
+*
