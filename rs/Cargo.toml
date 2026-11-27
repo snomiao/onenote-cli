@@ -13,3 +13,16 @@ path = "src/main.rs"
 opt-level = 3
 lto = "thin"
 strip = true
+
+# Only the search needs these, and the search is ported for Linux only (see
+# src/main.rs), so the other platforms build without them, and without C.
+[target.'cfg(target_os = "linux")'.dependencies]
+# Local time for "last synced" and --since. The zone data is compiled in, as
+# the JavaScript runtime carries its own (ICU's): the answer then does not
+# depend on which zone files a machine has installed.
+jiff = { version = "1.0.3", features = ["tzdb-bundle-always"] }
+# The search index is an SQLite file with an FTS5 table. SQLite is compiled
+# in (C, no system library), so every Linux reads it the same way.
+rusqlite = { version = "0.43.0", features = ["bundled"] }
+# JSON.parse for the tag lines stored in the index.
+serde_json = "1.0.154"

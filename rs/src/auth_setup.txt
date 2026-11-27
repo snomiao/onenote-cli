@@ -1,0 +1,34 @@
+
+=== onenote-cli OAuth Setup ===
+
+1. Register an Azure AD app:
+   https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps
+
+   - Click "New registration"
+   - Name: onenote-cli
+   - Supported account types: "Accounts in any organizational directory and personal Microsoft accounts"
+   - Click "Register"
+
+2. Configure authentication:
+   - Go to "Authentication" > "Add a platform" > "Mobile and desktop applications"
+   - Check: https://login.microsoftonline.com/common/oauth2/nativeclient
+   - Enable "Allow public client flows" in Settings tab
+   - Click "Save"
+
+3. Add API permissions:
+   - Go to "API permissions" > "Add a permission" > "Microsoft Graph" > "Delegated permissions"
+   - Add: Notes.Read, Notes.ReadWrite, Notes.ReadWrite.All
+   - Click "Add permissions"
+
+4. Copy your Application (client) ID and set it:
+
+   Option A — .env.local:
+     ONENOTE_CLIENT_ID=<your-client-id>
+     ONENOTE_AUTHORITY=https://login.microsoftonline.com/common
+
+   Option B — ~/.onenote-cli/config.json:
+     { "clientId": "<your-client-id>", "authority": "https://login.microsoftonline.com/common" }
+
+5. Login:
+   onenote auth login
+
