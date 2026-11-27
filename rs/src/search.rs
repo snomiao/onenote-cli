@@ -276,8 +276,32 @@ struct Request<'a> {
     offset: u32,
 }
 
+/// Whether the runtime's SQLite can open the index read-only, as far as this
+/// binary can tell without asking it.
+///
+/// On macOS bun:sqlite is the system's SQLite, which cannot open a database
+/// in WAL mode read-only while the `-wal` file beside it is missing
+/// (SQLITE_CANTOPEN; a missing `-shm` file it makes itself), and the
+/// TypeScript then takes the cache for empty and starts a sync. The SQLite
+/// compiled in here, like the one inside bun on Linux, makes both files and
+/// reads on. So on macOS the binary leaves the search to the JavaScript
+/// whenever the `-wal` file is not there, whatever the journal mode. A sync
+/// leaves it there (its last connection is never closed); an index that
+/// something closed cleanly has none.
+fn openable_by_the_runtime(file: &Path) -> Result<(), HandBack> {
+    if cfg!(target_os = "macos") {
+        let mut wal = file.as_os_str().to_owned();
+        wal.push("-wal");
+        if !std::fs::symlink_metadata(&wal).is_ok_and(|meta| meta.is_file()) {
+            return Err(HandBack);
+        }
+    }
+    Ok(())
+}
+
 /// `isCacheEmpty()` and `searchLocal()`, where the index answers.
 fn search_index(file: &Path, request: &Request<'_>) -> Result<Vec<Page>, HandBack> {
+    openable_by_the_runtime(file)?;
     let db = Connection::open_with_flags(file, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|_| HandBack)?;
     let pages: i64 = db.query_row("SELECT COUNT(*) as c FROM pages", [], |row| row.get(0)).map_err(|_| HandBack)?;
     if pages <= 0 {

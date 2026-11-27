@@ -15,16 +15,18 @@ use crate::HandBack;
 /// Where the JavaScript runtime reads a zone differently from this binary:
 /// the zone, and from when until when.
 ///
-/// The runtime carries its own time zone database (ICU's, inside bun) and
-/// this binary carries one too (the `jiff-tzdb` crate), and the two are not
-/// of the same edition. Where a country has changed its clocks between the
-/// editions, or an old change was corrected, they are an hour apart for a
-/// stretch of time. Listed here is what differs between bun 1.4.0 (ICU 78.3)
-/// and tzdb 2026f; the binary leaves these stretches to the runtime.
+/// The runtime has a time zone database (ICU's: inside bun on Linux, the
+/// system's on macOS) and this binary carries one too (the `jiff-tzdb`
+/// crate), and the two are not of the same edition. Where a country has
+/// changed its clocks between the editions, or an old change was corrected,
+/// they are an hour apart for a stretch of time. Listed here is what
+/// differs between bun 1.4.0 (ICU 78.3) and tzdb 2026f; the binary leaves
+/// these stretches to the runtime. macOS has a list of its own, below.
 ///
 /// The test `every_zone_is_read_as_the_runtime_reads_it` at the end of this
 /// file compares every zone with the runtime that is installed, fails for a
 /// difference that is not listed, and prints the line to add.
+#[cfg(not(target_os = "macos"))]
 const READ_DIFFERENTLY_BY_THE_RUNTIME: [(&str, &str, &str); 16] = [
     // Morocco, from September 2026 on.
     ("Africa/Casablanca", "2026-09-20T01:00:00Z", "2099-12-31T10:05:09Z"),
@@ -48,6 +50,25 @@ const READ_DIFFERENTLY_BY_THE_RUNTIME: [(&str, &str, &str); 16] = [
     // Iran: an hour of one night in May 1979.
     ("Asia/Tehran", "1979-05-25T20:30:00Z", "1979-05-25T21:30:01Z"),
     ("Iran", "1979-05-25T20:30:00Z", "1979-05-25T21:30:01Z"),
+];
+
+/// The same for macOS, where bun reads the system's ICU and its data: what
+/// differs between tzdb 2026f and the editions in MACOS_EDITIONS_COMPARED
+/// (2026e, the one macOS 27.0.1 had in use, and 2026f, which it had
+/// downloaded beside it; bun 1.4.4, ICU 78.1). Each line is from one of
+/// them or from both.
+#[cfg(target_os = "macos")]
+const READ_DIFFERENTLY_BY_THE_RUNTIME: [(&str, &str, &str); 6] = [
+    // Cuba: the winter of 2026, as on Linux (2026e; 2026f agrees).
+    ("America/Havana", "2026-11-01T15:19:55Z", "2027-03-13T00:31:27Z"),
+    ("Cuba", "2026-11-01T15:19:55Z", "2027-03-13T00:31:27Z"),
+    // The four zones of the United States named by their rule: since tzdb
+    // 2024b another name for America/Chicago and the like. macOS's ICU does
+    // not know them under TZ and shows UTC (2026e and 2026f); every time.
+    ("CST6CDT", "1970-01-01T03:00:17Z", "2099-12-31T10:05:09Z"),
+    ("EST5EDT", "1970-01-01T03:00:17Z", "2099-12-31T10:05:09Z"),
+    ("MST7MDT", "1970-01-01T03:00:17Z", "2099-12-31T10:05:09Z"),
+    ("PST8PDT", "1970-01-01T03:00:17Z", "2099-12-31T10:05:09Z"),
 ];
 
 /// How far the binary stays away from a listed stretch, on both sides. The
@@ -99,10 +120,57 @@ impl Zone {
     }
 }
 
+/// The editions of the time zone database that macOS's own ICU has been
+/// compared in, with the test at the end of this file.
+///
+/// bun on Linux carries ICU, and with it the time zone data, inside itself;
+/// bun on macOS uses the system's ICU (libicucore), which reads the data
+/// from /var/db/timezone/icutz. That is a link to the edition the system
+/// has installed (`…/tz/2026e.1.0/icutz`), and macOS moves it on by itself
+/// as new editions come out, so two Macs can read a zone differently. On a
+/// Mac whose edition is not listed here the binary leaves every local time
+/// to the runtime.
+#[cfg(target_os = "macos")]
+const MACOS_EDITIONS_COMPARED: [&str; 2] = ["2026e", "2026f"];
+
+/// The edition of the data in a directory of ICU's time zone files, from
+/// the name of the directory it lies in (`…/2026e.1.0/icutz`).
+#[cfg(any(target_os = "macos", test))]
+fn edition_of(icutz: &std::path::Path) -> Option<String> {
+    if !std::fs::metadata(icutz.join("icutz44l.dat")).is_ok_and(|meta| meta.is_file()) {
+        return None;
+    }
+    let version = icutz.parent()?.file_name()?.to_str()?;
+    let edition = version.split('.').next()?;
+    let (year, letter) = edition.split_at_checked(4)?;
+    (year.bytes().all(|b| b.is_ascii_digit()) && letter.len() == 1 && letter.bytes().all(|b| b.is_ascii_lowercase())).then(|| edition.to_string())
+}
+
+/// The edition of the time zone data the runtime reads on this Mac: where
+/// /var/db/timezone/icutz leads. Without it ICU falls back to data of its
+/// own, of an edition that cannot be told from here.
+#[cfg(target_os = "macos")]
+fn system_edition() -> Option<String> {
+    let target = std::fs::read_link("/var/db/timezone/icutz").ok()?;
+    edition_of(&std::path::Path::new("/var/db/timezone").join(target))
+}
+
+/// `Ok` where the runtime's time zone data is of an edition that was
+/// compared with the one compiled in. On Linux that is the data inside bun,
+/// compared by the same test; on macOS, see `MACOS_EDITIONS_COMPARED`.
+fn compared_data() -> Result<(), HandBack> {
+    #[cfg(target_os = "macos")]
+    if !system_edition().is_some_and(|edition| MACOS_EDITIONS_COMPARED.contains(&edition.as_str())) {
+        return Err(HandBack);
+    }
+    Ok(())
+}
+
 /// The zone `Date` uses for local time: the one `TZ` names, else the
 /// system's. `TZ` can also hold a rule (`JST-9`), a path or nothing, which
 /// the JavaScript runtime reads its own way.
 pub fn local_zone() -> Result<Zone, HandBack> {
+    compared_data()?;
     match std::env::var_os("TZ") {
         Some(tz) => tz.to_str().and_then(Zone::named).ok_or(HandBack),
         None => TimeZone::try_system().ok().and_then(|system| system.iana_name().and_then(Zone::named)).ok_or(HandBack),
@@ -436,6 +504,27 @@ mod tests {
         assert!(modified_second(std::time::UNIX_EPOCH - std::time::Duration::new(1, 0)).is_err());
     }
 
+    #[test]
+    fn the_edition_of_icus_data_is_the_name_of_its_directory() {
+        let root = std::env::temp_dir().join(format!("onenote-cli-editions-{}", std::process::id()));
+        let make = |version: &str, with_data: bool| {
+            let icutz = root.join(version).join("icutz");
+            std::fs::create_dir_all(&icutz).unwrap();
+            if with_data {
+                std::fs::write(icutz.join("icutz44l.dat"), b"").unwrap();
+            }
+            icutz
+        };
+        assert_eq!(edition_of(&make("2026e.1.0", true)).as_deref(), Some("2026e"));
+        assert_eq!(edition_of(&make("2027a", true)).as_deref(), Some("2027a"));
+        // No data: ICU would use its own.
+        assert_eq!(edition_of(&make("2026f.1.0", false)), None);
+        for odd in ["26e.1.0", "2026.1.0", "2026ee.1.0", "2026E.1.0", "latest"] {
+            assert_eq!(edition_of(&make(odd, true)), None, "{odd}");
+        }
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
     /// Questions for rs/parity/runtime-time.ts about one zone, each with the
     /// answer this file gives.
     struct Questions<'z> {
@@ -531,7 +620,10 @@ mod tests {
     const STRIDE: i64 = 86400 + 7 * 3600 + 13 * 60 + 11;
 
     /// The answers of the JavaScript runtime, started the way `onenote` is:
-    /// with the zone in TZ.
+    /// with the zone in TZ. ICU_TIMEZONE_FILES_DIR, when the test has it,
+    /// goes to the runtime too: on macOS it points the system's ICU at
+    /// another edition of its data (/var/db/timezone/tz/<edition>/icutz), to
+    /// compare an edition this Mac has but does not use yet.
     fn ask_the_runtime(zone: &str, questions: &[&(String, String)], directory: &std::path::Path) -> Vec<String> {
         use std::io::Write;
         use std::process::{Command, Stdio};
@@ -543,6 +635,7 @@ mod tests {
             .env("PATH", std::env::var_os("PATH").unwrap_or_default())
             .env("HOME", directory)
             .env("TZ", zone)
+            .envs(std::env::var_os("ICU_TIMEZONE_FILES_DIR").map(|dir| ("ICU_TIMEZONE_FILES_DIR", dir)))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
@@ -669,5 +762,22 @@ mod tests {
             }
         }
         assert!(wrong.is_empty(), "the runtime reads these differently, and they are not listed in READ_DIFFERENTLY_BY_THE_RUNTIME:\n{}", wrong.join("\n"));
+        // On macOS the binary answers only where the system's edition of the
+        // data is one that was compared (compared_data).
+        #[cfg(target_os = "macos")]
+        {
+            let edition = match std::env::var_os("ICU_TIMEZONE_FILES_DIR") {
+                Some(dir) => edition_of(std::path::Path::new(&dir)),
+                None => system_edition(),
+            };
+            println!("the runtime's time zone data here: edition {}", edition.as_deref().unwrap_or("unknown"));
+            match edition {
+                Some(edition) => assert!(
+                    MACOS_EDITIONS_COMPARED.contains(&edition.as_str()),
+                    "every zone agrees with edition {edition} of the time zone data, which this Mac's ICU reads; the binary leaves local times to the runtime on a Mac with it until {edition:?} is added to MACOS_EDITIONS_COMPARED"
+                ),
+                None => panic!("the edition of this Mac's time zone data cannot be told (/var/db/timezone/icutz), and the binary leaves local times to the runtime here"),
+            }
+        }
     }
 }

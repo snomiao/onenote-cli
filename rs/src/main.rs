@@ -8,14 +8,15 @@
 mod js_fallback;
 mod runtime;
 
-// The search, and what only it needs. Linux only: see `search` below.
-#[cfg(target_os = "linux")]
+// The search, and what only it needs. Linux and macOS only: see `search`
+// below.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 mod js;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 mod query;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 mod search;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 mod time;
 
 use std::io::{IsTerminal, Write};
@@ -38,7 +39,7 @@ fn native() -> bool {
 }
 
 /// What a ported command needs to know about the machine.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "linux", target_os = "macos")), allow(dead_code))]
 struct Machine {
     /// The package directory: the JavaScript lives there, and so do the
     /// search index and the caches.
@@ -85,21 +86,25 @@ fn loadable(_package_root: &std::path::Path) -> bool {
 
 /// `onenote search <query>`: what it prints, or `HandBack`.
 ///
-/// On Linux only. The last line of a search carries a local time written by
-/// `toLocaleString()`. On Linux bun's locale is en-US whatever the user's is
-/// (compared under LANG and LC_ALL). On macOS and Windows a JavaScript
-/// runtime usually takes the system's language and region, and what bun
-/// prints there could not be tried; nor could bun's SQLite on those systems
-/// (on macOS it is documented to be the system's, not its own). So there the
-/// search stays the JavaScript's, and SQLite is not even compiled in.
-#[cfg(target_os = "linux")]
+/// On Linux and macOS. The last line of a search carries a local time
+/// written by `toLocaleString()`, and the rows come from bun:sqlite. On both
+/// bun writes the time as en-US whatever the user's language (compared
+/// under LANG and LC_ALL, and on macOS also under another language and
+/// region in the user's preferences). On macOS bun reads the time zone data
+/// of the system's ICU, which macOS updates by itself, and opens the index
+/// with the system's SQLite; time.rs and search.rs hand back where those
+/// can differ from what is compiled in here (an edition of the data that was
+/// not compared, an index without its -wal file). On Windows nothing of the
+/// search was compared, so there it stays the JavaScript's, and SQLite is
+/// not even compiled in.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn search(args: &[String]) -> Result<String, HandBack> {
     let args = search::parse_args(args).ok_or(HandBack)?;
     let machine = machine()?;
     search::run(&args, &machine.package_root, machine.terminal)
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 fn search(_args: &[String]) -> Result<String, HandBack> {
     Err(HandBack)
 }
