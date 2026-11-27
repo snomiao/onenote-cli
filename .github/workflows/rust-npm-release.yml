@@ -1,9 +1,10 @@
-# Builds the Rust `onenote-cli` binary for every platform, packs it together
-# with the TypeScript the package ships, and checks on Linux, macOS and
-# Windows (x64 and arm64) that `bun i -g` / `npm i -g` gives working `onenote`
-# and `onenote-cli` commands.
+# Builds the Rust `onenote-cli` binary for every platform, compares it with
+# the TypeScript on Linux, packs it together with the TypeScript the package
+# ships, and checks on Linux, macOS and Windows (x64 and arm64) that
+# `bun i -g` / `npm i -g` gives working `onenote` and `onenote-cli` commands.
 #
-# It does not publish. Releases still go through release.yml.
+# It does not publish, and nothing can start it to: there is no publish job
+# and no workflow_call trigger. Releases still go through release.yml.
 #
 # The pipeline lives in https://github.com/snomiao/rustify.
 
@@ -13,7 +14,11 @@ on:
   pull_request:
     paths:
       - "rs/**"
+      # The parity cases compare the binary with the TypeScript, so a change
+      # to either side has to run them.
+      - "src/**"
       - "package.json"
+      - "bun.lock"
       - ".github/workflows/rust-npm-release.yml"
   workflow_dispatch:
     inputs:
@@ -29,11 +34,40 @@ jobs:
       manifest: rs/Cargo.toml
       bins: onenote-cli
       version: ${{ inputs.version }}
-      # Both commands are the same binary, and it hands everything to
-      # src/index.ts, so these go through the TypeScript on every machine.
+      # Both commands are the same binary. --help is yargs's, so these go
+      # through the hand-back to src/index.ts on every machine.
       # (--version is no use as the check: installed with bun, yargs cannot
       # find the package and prints "unknown".)
       smoke: onenote --help
       smoke-expect: List notebooks, sections, or pages
+      # Rust against TypeScript, on the Linux binary that was just built
+      # (rs/parity.gen.mjs says what the cases are; nothing in them reaches
+      # Microsoft). Four runs:
+      #   1. every case, TypeScript against the binary;
+      #   2. the binary alone against a stand-in package, which fails unless
+      #      exactly the cases marked "handback" reach the JavaScript;
+      #   3. and 4. the same two with a pseudo-terminal as standard output,
+      #      where the search prints colours and clickable titles.
+      parity: >-
+        bun install --frozen-lockfile
+        && node rs/parity.gen.mjs --check
+        && node "$RUSTIFY_PARITY" --cases rs/parity.json
+        --ts "sh rs/parity/ts.sh" --rs "$RUSTIFY_BIN_DIR/onenote-cli"
+        && node "$RUSTIFY_PARITY" --cases rs/parity.json
+        --rs "$RUSTIFY_BIN_DIR/onenote-cli" --handback ONENOTE_CLI_PACKAGE_ROOT=src/index.ts
+        && node "$RUSTIFY_PARITY" --cases rs/parity.json
+        --ts "python3 rs/parity/terminal.py sh rs/parity/ts.sh"
+        --rs "python3 rs/parity/terminal.py $RUSTIFY_BIN_DIR/onenote-cli"
+        && node "$RUSTIFY_PARITY" --cases rs/parity.json
+        --rs "python3 rs/parity/terminal.py $RUSTIFY_BIN_DIR/onenote-cli"
+        --handback ONENOTE_CLI_PACKAGE_ROOT=src/index.ts
+      # Run once on every platform after installing. `auth setup` is answered
+      # by the binary itself (it prints the setup guide and needs nothing);
+      # it is the one ported command that can run on a machine with no index.
+      # `onenote search` is not run here on purpose: without an index the
+      # TypeScript starts a sync, and on a machine that is signed in that is
+      # a real one.
       smoke-extra: |
         onenote-cli --help => List notebooks, sections, or pages
+        onenote auth setup => === onenote-cli OAuth Setup ===
+        onenote-cli auth setup => onenote auth login
