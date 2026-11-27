@@ -4,7 +4,8 @@
 //
 //   node rs/parity.gen.mjs           # rewrite both
 //   node rs/parity.gen.mjs --check   # fail if they are not what this file writes
-//   node rs/parity.gen.mjs --list    # print the case names
+//   node rs/parity.gen.mjs --list    # print the case names, with who answers each where
+//   node rs/parity.gen.mjs --groups  # print the groups of cases, for --filter
 //
 // Then, from the repository root (after `bun install` and a release build of
 // rs/):
@@ -30,10 +31,13 @@
 // browser) are not run at all.
 //
 // A case says who is expected to answer it:
-//   add(...)   the Rust binary, alone.
-//   back(...)  the JavaScript: the case carries "handback" with the reason.
+//   add(...)   the Rust binary, alone; a search only on Linux and macOS,
+//              and on Windows the JavaScript (SEARCH_ELSEWHERE).
+//   back(...)  the JavaScript, everywhere: the case carries "handback" with
+//              the reason.
 // The runner's --handback check fails unless exactly the marked ones get
-// there.
+// there, on the system it runs on. A case that cannot mean the same thing on
+// a system carries "skip" for it, and is not run there.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -317,26 +321,56 @@ const MTIME = "2026-03-08T09:05:07Z";
 const ROOT = '"$ONENOTE_CLI_PACKAGE_ROOT"';
 // What a case leaves behind: the directory it ran in, HOME, the index and
 // what SQLite puts beside it (sizes), the index's modification time, and the
-// files of ~/.onenote-cli.
-const AFTER = [
-  "ls -A <CWD> <HOME>",
-  `find ${ROOT}/.onenote <HOME>/.onenote-cli -type f -exec stat -c '%s %n' {} + 2>&1 | sort; stat -c %Y ${ROOT}/.onenote/search.db 2>&1`,
-];
+// files of ~/.onenote-cli. (rs/parity/files.mjs, because macOS has no
+// `stat -c`.)
+const FILES = `node "<REPO>/rs/parity/files.mjs"`;
+const AFTER = ["ls -A <CWD> <HOME>", `${FILES} --mtime ${ROOT}/.onenote/search.db ${ROOT}/.onenote <HOME>/.onenote-cli`];
+/** Sets a file's time to the nanosecond, on every system (`touch -d` is GNU's or BSD's). */
+const touch = (when, file) => `sh "<REPO>/rs/parity/touch.sh" ${when} ${file}`;
+
+/**
+ * Where the binary hands a search back that it answers elsewhere. The
+ * search is ported for Linux and macOS, where its cases ran; on Windows it
+ * is not compiled in (rs/src/main.rs), and every search goes to the
+ * JavaScript.
+ */
+const SEARCH_ELSEWHERE = { win32: "the search is not ported for Windows: bun's SQLite, time zone data and console there were never compared" };
+/**
+ * An index without its -wal file: on macOS the system's SQLite, which
+ * bun:sqlite is there, cannot open it read-only, and the TypeScript takes
+ * the cache for empty and syncs; the binary leaves that to it
+ * (rs/src/search.rs, openable_by_the_runtime).
+ */
+const CLOSED_ON_MACOS = "macOS's SQLite cannot open an index in WAL mode read-only without its -wal file, and the TypeScript then takes the cache for empty";
 
 /**
  * One case. `db` names the index to start from ("notes", or ["notes",
- * "--wal", "empty"]), `mtime` its modification time, `root` files to put in
- * the package directory, `tz` the TZ to run under (null: none, the system's
- * zone), `pkg` a package directory other than <HOME>/pkg, `normalize` rules
- * for what differs between two runs of the same program.
+ * "--wal", "pending"]): by default as a finished `onenote sync` leaves it
+ * (make-db.ts --wal empty: the index, an empty -wal file and the -shm file),
+ * and with "--closed" as one closed cleanly leaves it (the index alone).
+ * `closed` says that the index has no -wal file when the command runs (set
+ * by "--closed"; for a setup line that removes it). `mtime` is the index's
+ * modification time, `root` files to put in the package directory, `tz` the
+ * TZ to run under (null: none, the system's zone), `pkg` a package
+ * directory other than <HOME>/pkg, `normalize` rules for what differs
+ * between two runs of the same program, `skip` the systems on which the
+ * case cannot mean the same thing, and why.
+ *
+ * `handback` is the reason the case goes to the JavaScript on every system,
+ * or an object with a reason for each system where it does (`linux`,
+ * `darwin`). A search the binary answers is still handed back on the
+ * systems that SEARCH_ELSEWHERE names, and on macOS when the index is
+ * `closed`.
  */
-function make(name, args, { db, mtime = MTIME, root = {}, tz = "UTC", env = {}, files, setup = [], stdin, after = AFTER, handback, normalize, pkg } = {}) {
+function make(name, args, { db, mtime = MTIME, root = {}, tz = "UTC", env = {}, files, setup = [], stdin, after = AFTER, handback, normalize, pkg, skip, closed = false } = {}) {
   const lines = ['sh "<REPO>/rs/parity/package.sh"'];
   for (const [file, content] of Object.entries(root)) lines.push(`printf %s ${sq(content)} > ${ROOT}/${file}`);
   if (db) {
-    const [which, ...flags] = [].concat(db);
+    const [which, ...given] = [].concat(db);
     const rows = DBS[which] ? `db/${which}.json` : KEPT.includes(which) ? `rows/${which}.json` : null;
     if (!rows) throw new Error(`${name}: no index called ${which}`);
+    closed ||= given.includes("--closed");
+    const flags = given.includes("--closed") ? given.filter((flag) => flag !== "--closed") : given.includes("--wal") ? given : [...given, "--wal", "empty"];
     lines.push(`bun "<REPO>/rs/parity/make-db.ts" "<REPO>/rs/parity/${rows}" --mtime ${mtime}${flags.length ? ` ${flags.join(" ")}` : ""}`);
   }
   lines.push(...setup);
@@ -350,7 +384,8 @@ function make(name, args, { db, mtime = MTIME, root = {}, tz = "UTC", env = {}, 
     setup: lines,
     after,
     ...(normalize ? { normalize } : {}),
-    ...(handback ? { handback } : {}),
+    ...(typeof handback === "string" ? { handback } : args[0] === "search" ? { handback: { ...(closed ? { darwin: CLOSED_ON_MACOS } : {}), ...handback, ...SEARCH_ELSEWHERE } } : handback ? { handback } : {}),
+    ...(skip ? { skip } : {}),
   });
 }
 /** A case the Rust binary answers alone. */
@@ -594,6 +629,15 @@ back("search time: TZ is empty", "the runtime reads rules, paths and other spell
 add("search state: an index as a finished sync leaves it", search("plan"), { db: ["notes", "--wal", "empty"] });
 add("search state: an index whose rows are still in the write-ahead log", search("plan"), { db: ["notes", "--wal", "pending"] });
 add("search state: tags from the write-ahead log", search("#todo", "-c"), { db: ["notes", "--wal", "pending"] });
+// Every other case starts from an index as a sync leaves it. One that was
+// closed cleanly has no -wal file, which macOS's SQLite needs to open it
+// read-only; it makes a missing -shm file itself.
+add("search state: an index closed cleanly", search("plan"), { db: ["notes", "--closed"] });
+add("search state: tags from an index closed cleanly", search("#todo", "-c"), { db: ["notes", "--closed"] });
+add("search state: no results from an index closed cleanly", search("nosuchword"), { db: ["notes", "--closed"] });
+add("search state: an index closed cleanly, grouped", search("plan", "-g"), { db: ["bulk", "--closed"] });
+add("search state: an index with its -wal file and no -shm file", search("plan"), { ...NOTES, setup: [`rm ${ROOT}/.onenote/search.db-shm`] });
+add("search state: an index with its -shm file and no -wal file", search("plan"), { ...NOTES, closed: true, setup: [`rm ${ROOT}/.onenote/search.db-wal`] });
 add("search state: a .env here that has nothing to say about it", search("retro"), {
   ...NOTES,
   files: { ".env": "# local settings\nFOO=bar\nexport API_URL='https://example.com'\nONENOTE_CACHE_DIR=/nonexistent\n" },
@@ -656,15 +700,21 @@ back("search state: section files and an index without pages", "an index without
   files: { "cache/Work/Meetings.json": SECTION_FILE },
 });
 back("search state: the index is not a database", "SQLite cannot read it and the TypeScript reads the section files instead", search("plan"), {
-  setup: [`mkdir -p ${ROOT}/.onenote && printf 'not a database\\n' > ${ROOT}/.onenote/search.db && touch -d ${MTIME} ${ROOT}/.onenote/search.db`],
+  setup: [`mkdir -p ${ROOT}/.onenote && printf 'not a database\\n' > ${ROOT}/.onenote/search.db && ${touch(MTIME, `${ROOT}/.onenote/search.db`)}`],
 });
 back("search state: an index from before the full-text table", "SQLite reports the missing table and the TypeScript reads the section files instead", search("plan"), {
   ...NOTES,
-  setup: [`bun -e 'import { Database } from "bun:sqlite"; const db = new Database(process.env.ONENOTE_CLI_PACKAGE_ROOT + "/.onenote/search.db"); db.run("DROP TABLE pages_fts"); db.close(true);' && touch -d ${MTIME} ${ROOT}/.onenote/search.db && rm -f ${ROOT}/.onenote/search.db-wal ${ROOT}/.onenote/search.db-shm`],
+  setup: [`bun -e 'import { Database } from "bun:sqlite"; const db = new Database(process.env.ONENOTE_CLI_PACKAGE_ROOT + "/.onenote/search.db"); db.run("DROP TABLE pages_fts"); db.close(true);' && ${touch(MTIME, `${ROOT}/.onenote/search.db`)} && rm -f ${ROOT}/.onenote/search.db-wal ${ROOT}/.onenote/search.db-shm`],
 });
 add("search state: tags need no full-text table", search("#todo", "-c"), {
   ...NOTES,
-  setup: [`bun -e 'import { Database } from "bun:sqlite"; const db = new Database(process.env.ONENOTE_CLI_PACKAGE_ROOT + "/.onenote/search.db"); db.run("DROP TABLE pages_fts"); db.close(true);' && touch -d ${MTIME} ${ROOT}/.onenote/search.db && rm -f ${ROOT}/.onenote/search.db-wal ${ROOT}/.onenote/search.db-shm`],
+  closed: true,
+  setup: [`bun -e 'import { Database } from "bun:sqlite"; const db = new Database(process.env.ONENOTE_CLI_PACKAGE_ROOT + "/.onenote/search.db"); db.run("DROP TABLE pages_fts"); db.close(true);' && ${touch(MTIME, `${ROOT}/.onenote/search.db`)} && rm -f ${ROOT}/.onenote/search.db-wal ${ROOT}/.onenote/search.db-shm`],
+});
+// The same with an empty -wal file beside it, which macOS's SQLite opens.
+add("search state: tags need no full-text table, with an empty -wal file", search("#todo", "-c"), {
+  ...NOTES,
+  setup: [`bun -e 'import { Database } from "bun:sqlite"; const db = new Database(process.env.ONENOTE_CLI_PACKAGE_ROOT + "/.onenote/search.db"); db.run("DROP TABLE pages_fts"); db.close(true);' && ${touch(MTIME, `${ROOT}/.onenote/search.db`)} && rm -f ${ROOT}/.onenote/search.db-shm && : > ${ROOT}/.onenote/search.db-wal`],
 });
 
 // Rows no sync writes.
@@ -755,7 +805,7 @@ back("cli: read", NOT_PORTED, ["read", "Work/Meetings/Retro"]);
 back("cli: rename with an ID", NOT_PORTED, ["rename", "0-1234567890abcdef", "New name"]);
 back("cli: sync", NOT_PORTED, ["sync"]);
 // reindex writes a new index, so its modification time is the time of the run.
-const AFTER_REINDEX = [AFTER[0], AFTER[1].slice(0, AFTER[1].indexOf("; stat -c %Y"))];
+const AFTER_REINDEX = [AFTER[0], `${FILES} ${ROOT}/.onenote <HOME>/.onenote-cli`];
 back("cli: reindex with nothing cached", NOT_PORTED, ["reindex"], { after: AFTER_REINDEX });
 back("cli: reindex of section files", NOT_PORTED, ["reindex"], {
   env: { ONENOTE_CACHE_DIR: "<CWD>/cache" },
@@ -803,7 +853,12 @@ const NO_ZONE_NAME = "the runtime reads rules, paths and other spellings its own
 const BEFORE_1970 = "a span that reaches back before 1970, where the two time zone databases were not compared";
 const FOR_THE_RUNTIME = "a variable named for the runtime (BUN_*, NODE_*, MIMALLOC_*, ICU_*): what it does with it is not imitated";
 const OTHER_ZONE_DATA = "the runtime's time zone database and the one compiled in differ for this zone at this time";
+/** Where only bun's own data on Linux differs (rs/src/time.rs has a list for each system). */
+const ON_LINUX = (why) => ({ linux: why });
 const LAST_MILLISECOND = "the last millisecond of a second is left to the runtime, which rounds the file's time its own way";
+// On macOS bun reads the system's ICU, which does not know these four names
+// under TZ and shows UTC (rs/src/time.rs).
+const UNKNOWN_ON_MACOS = "macOS's ICU does not know this zone name under TZ and shows UTC";
 const GOES_BACK = {
   'search expression: "plan AND NOT project"': FTS_REJECTS,
   'search expression: "NOT plan"': FTS_REJECTS,
@@ -850,6 +905,7 @@ const GOES_BACK = {
   "search state: .env.test.local here sets TZ": "every .env file bun might load is looked at, whatever NODE_ENV is",
   "search state: the index's time has a fraction": LAST_MILLISECOND,
   "auth setup: an empty argument after it": YARGS,
+  "search time: EST5EDT": { darwin: UNKNOWN_ON_MACOS },
 };
 const wentBack = new Set();
 /** A case of the verification: for Rust, unless `GOES_BACK` has a reason. */
@@ -883,7 +939,7 @@ also("search state: .env here is a link to a file that sets TZ", search("retro")
 also("search state: .env here is a directory", search("retro"), { ...NOTES, setup: ["mkdir .env"] });
 also("search state: .env.test.local here sets TZ", search("retro"), { ...NOTES, files: { ".env.test.local": "TZ=Asia/Tokyo\n" } });
 also("search state: a .env here with CRLF and no letters that matter", search("retro"), { ...NOTES, files: { ".env": "FOO=bar\r\nONENOTE_CLIENT_ID=x\r\n" } });
-also("search state: the index's time has a fraction", search("retro"), { ...NOTES, setup: [`touch -d '2026-03-08 09:05:07.9996 UTC' ${ROOT}/.onenote/search.db`] });
+also("search state: the index's time has a fraction", search("retro"), { ...NOTES, setup: [touch("2026-03-08T09:05:07.9996Z", `${ROOT}/.onenote/search.db`)] });
 also("auth setup: LANG=de_DE.UTF-8", ["auth", "setup"], { env: { LANG: "de_DE.UTF-8" } });
 also("auth setup: an empty argument after it", ["auth", "setup", ""]);
 also("auth setup: a package directory with blanks", ["auth", "setup"], { pkg: "<HOME>/my pkg" });
@@ -898,31 +954,35 @@ for (const name of Object.keys(GOES_BACK)) if (!wentBack.has(name)) throw new Er
 // and the binary leaves those to the runtime, three days on either side
 // included.
 const WINTER_2026 = "2026-11-27T12:00:00Z";
+// On macOS only Cuba's winter differs of these (and the four zones named by
+// their rule, below); the rest is answered there.
 for (const zone of ["America/Vancouver", "America/Edmonton", "America/Winnipeg", "Canada/Pacific", "America/Havana", "Africa/Casablanca", "America/Inuvik", "America/Yellowknife", "America/Rainy_River", "Canada/Mountain", "Canada/Central", "Cuba", "Africa/El_Aaiun"]) {
-  back(`search time: ${zone} on 2026-11-27, where the databases differ`, OTHER_ZONE_DATA, search("retro"), one(zone, WINTER_2026));
+  const why = zone === "America/Havana" || zone === "Cuba" ? OTHER_ZONE_DATA : ON_LINUX(OTHER_ZONE_DATA);
+  back(`search time: ${zone} on 2026-11-27, where the databases differ`, why, search("retro"), one(zone, WINTER_2026));
 }
-back("search time: Bogota on 1992-05-02, where the databases differ", OTHER_ZONE_DATA, search("retro"), one("America/Bogota", "1992-05-02T12:00:00Z"));
-back("search time: Tehran on 1979-05-25, where the databases differ", OTHER_ZONE_DATA, search("retro"), one("Asia/Tehran", "1979-05-25T21:00:00Z"));
-back("search time: Iran on 1979-05-25, where the databases differ", OTHER_ZONE_DATA, search("retro"), one("Iran", "1979-05-25T21:00:00Z"));
+back("search time: Bogota on 1992-05-02, where the databases differ", ON_LINUX(OTHER_ZONE_DATA), search("retro"), one("America/Bogota", "1992-05-02T12:00:00Z"));
+back("search time: Tehran on 1979-05-25, where the databases differ", ON_LINUX(OTHER_ZONE_DATA), search("retro"), one("Asia/Tehran", "1979-05-25T21:00:00Z"));
+back("search time: Iran on 1979-05-25, where the databases differ", ON_LINUX(OTHER_ZONE_DATA), search("retro"), one("Iran", "1979-05-25T21:00:00Z"));
+for (const zone of ["CST6CDT", "MST7MDT", "PST8PDT"]) back(`search time: ${zone}`, { darwin: UNKNOWN_ON_MACOS }, search("retro"), one(zone, MTIME));
 // The same zones where the databases agree.
 add("search time: Vancouver before the databases differ", search("retro"), one("America/Vancouver", MTIME));
 add("search time: Vancouver, the last second before the margin", search("retro"), one("America/Vancouver", "2026-10-29T08:59:59Z"));
-back("search time: Vancouver, the first second of the margin", OTHER_ZONE_DATA, search("retro"), one("America/Vancouver", "2026-10-29T09:00:00Z"));
+back("search time: Vancouver, the first second of the margin", ON_LINUX(OTHER_ZONE_DATA), search("retro"), one("America/Vancouver", "2026-10-29T09:00:00Z"));
 add("search time: Casablanca before the databases differ", search("retro"), one("Africa/Casablanca", MTIME));
 add("search time: Havana after the winter the databases differ on", search("retro"), one("America/Havana", "2027-06-01T12:00:00Z"));
 add("search time: Bogota today", search("retro"), one("America/Bogota", MTIME));
 add("search time: Bogota a week after the day the databases differ on", search("retro"), one("America/Bogota", "1992-05-09T12:00:00Z"));
 add("search time: Tehran today", search("retro"), one("Asia/Tehran", MTIME));
 // --since counts back on the local calendar, from now.
-back("search since: a span in Vancouver, where the databases differ from November 2026 on", OTHER_ZONE_DATA, search("boundary", "--since", "100d"), {
+back("search since: a span in Vancouver, where the databases differ from November 2026 on", ON_LINUX(OTHER_ZONE_DATA), search("boundary", "--since", "100d"), {
   tz: "America/Vancouver",
   // One page, last modified 100 days and 30 minutes ago: inside the span by
   // the runtime's clock, outside it by the compiled-in one.
   setup: [
-    `printf '[{"notebook":"N","section":"S","title":"Edge page","body":"boundary marker text","last_modified":"%s"}]' "$(date -u -d '100 days ago 30 minutes ago' +%Y-%m-%dT%H:%M:%SZ)" > edge.json && bun "<REPO>/rs/parity/make-db.ts" edge.json --mtime ${MTIME} && rm edge.json`,
+    `printf '[{"notebook":"N","section":"S","title":"Edge page","body":"boundary marker text","last_modified":"%s"}]' "$(node -e 'const d = new Date(); d.setDate(d.getDate() - 100); d.setMinutes(d.getMinutes() - 30); console.log(d.toISOString().slice(0, 19) + "Z")')" > edge.json && bun "<REPO>/rs/parity/make-db.ts" edge.json --mtime ${MTIME} --wal empty && rm edge.json`,
   ],
 });
-back("search since: thirty days back in Edmonton", OTHER_ZONE_DATA, search("era", "--since", "30d"), { db: "ages", tz: "America/Edmonton" });
+back("search since: thirty days back in Edmonton", ON_LINUX(OTHER_ZONE_DATA), search("era", "--since", "30d"), { db: "ages", tz: "America/Edmonton" });
 add("search since: thirty days back in Bogota", search("era", "--since", "30d"), { db: "ages", tz: "America/Bogota" });
 add("search since: a day in Vancouver needs no zone", search("plan", "--since", "2026-02-15"), { ...NOTES, tz: "America/Vancouver", mtime: MTIME });
 back("search since: ninety-nine years back", BEFORE_1970, search("era", "--since", "99y"), { db: "ages" });
@@ -933,11 +993,11 @@ back("search time: an index from before 1970", "the time zone databases were com
 
 // The file's time. The runtime turns it into milliseconds in floating point,
 // and from 122 ns before a full second on (in 2026) shows the next second.
-add("search state: the index's time is just short of the last millisecond", search("retro"), { ...NOTES, setup: [`touch -d '2026-03-08 09:05:07.998999999 UTC' ${ROOT}/.onenote/search.db`] });
-back("search state: the index's time is in the last millisecond", LAST_MILLISECOND, search("retro"), { ...NOTES, setup: [`touch -d '2026-03-08 09:05:07.999 UTC' ${ROOT}/.onenote/search.db`] });
+add("search state: the index's time is just short of the last millisecond", search("retro"), { ...NOTES, setup: [touch("2026-03-08T09:05:07.998999999Z", `${ROOT}/.onenote/search.db`)] });
+back("search state: the index's time is in the last millisecond", LAST_MILLISECOND, search("retro"), { ...NOTES, setup: [touch("2026-03-08T09:05:07.999Z", `${ROOT}/.onenote/search.db`)] });
 back("search state: the index's time is 120 ns short of the next second", LAST_MILLISECOND, search("retro"), {
   ...NOTES,
-  setup: [`touch -d '2026-03-08 09:05:07.999999900 UTC' ${ROOT}/.onenote/search.db`],
+  setup: [touch("2026-03-08T09:05:07.999999900Z", `${ROOT}/.onenote/search.db`)],
 });
 
 // Variables the runtime reads for itself.
@@ -951,8 +1011,14 @@ back("search env: a transpiler cache directory, which the runtime fills", FOR_TH
 back("search env: BUN_ENV", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { BUN_ENV: "production" } });
 back("search env: MIMALLOC_SHOW_ERRORS=1", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { MIMALLOC_SHOW_ERRORS: "1" } });
 back("search env: NODE_EXTRA_CA_CERTS", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { NODE_EXTRA_CA_CERTS: "/nonexistent.pem" } });
-back("search env: ICU_DATA", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { ICU_DATA: "/nonexistent" } });
-back("search env: node_debug in small letters", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { node_debug: "http" } });
+back("search env: ICU_DATA", FOR_THE_RUNTIME, search("retro"), {
+  ...NOTES,
+  env: { ICU_DATA: "/nonexistent" },
+  skip: { darwin: "bun 1.4.4 crashes under it on macOS, and its crash report differs from one run to the next" },
+});
+// On Windows a variable's name is the same in any case, so there this is
+// NODE_DEBUG, and the warning with the process id comes too.
+back("search env: node_debug in small letters", FOR_THE_RUNTIME, search("retro"), { ...NOTES, env: { node_debug: "http" }, normalize: PID });
 // What bun's installer puts into the shell's profile.
 add("search env: BUN_INSTALL, as bun's installer sets it", search("retro"), { ...NOTES, env: { BUN_INSTALL: "<HOME>/.bun" } });
 add("auth setup: BUN_INSTALL, as bun's installer sets it", ["auth", "setup"], { env: { BUN_INSTALL: "<HOME>/.bun" } });
@@ -969,13 +1035,21 @@ back("search state: a .env here that names ICU's data directory", "the letters I
 // with `Module not found`, and the binary hands back to get the same. (The
 // --handback check gives every case its own stand-in package directory, so
 // there these four are answered by the binary and cannot be marked.)
-add("search state: a package directory with ? in its name cannot be loaded", search("retro"), { ...NOTES, pkg: "<HOME>/what?" });
-add("auth setup: a package directory with ? in its name cannot be loaded", ["auth", "setup"], { pkg: "<HOME>/what?" });
-add("search state: a package directory with a backslash in its name cannot be loaded", search("retro"), { ...NOTES, pkg: "<HOME>/back\\slash" });
+// Windows has neither: `?` cannot be in a file name there, and a backslash
+// separates directories.
+const NO_QUESTION_MARK = { win32: "a file name cannot hold ? on Windows" };
+add("search state: a package directory with ? in its name cannot be loaded", search("retro"), { ...NOTES, pkg: "<HOME>/what?", skip: NO_QUESTION_MARK });
+add("auth setup: a package directory with ? in its name cannot be loaded", ["auth", "setup"], { pkg: "<HOME>/what?", skip: NO_QUESTION_MARK });
+add("search state: a package directory with a backslash in its name cannot be loaded", search("retro"), {
+  ...NOTES,
+  pkg: "<HOME>/back\\slash",
+  skip: { win32: "a backslash separates directories on Windows" },
+});
 add("search state: a package directory that is a link to one with ? in its name", search("retro"), {
   ...NOTES,
   pkg: "<HOME>/link",
   setup: ['if [ -d "<HOME>/link" ]; then mv "<HOME>/link" "<HOME>/real?dir" && ln -s "real?dir" "<HOME>/link"; fi'],
+  skip: NO_QUESTION_MARK,
 });
 
 // ── output ───────────────────────────────────────────────────────────────────
@@ -986,9 +1060,28 @@ const spec = { env: { ONENOTE_CLI_PACKAGE_ROOT: "<HOME>/pkg" }, cases };
 const files = new Map([[path.join(HERE, "parity.json"), `${JSON.stringify(spec, null, 2)}\n`]]);
 for (const [name, rows] of Object.entries(DBS)) files.set(path.join(DB_DIR, `${name}.json`), `${JSON.stringify(rows, null, 1)}\n`);
 
+/** Who answers on a system: "skip", "back" or "rust". */
+const on = (c, system) => (c.skip?.[system] ? "skip" : typeof c.handback === "string" || c.handback?.[system] ? "back" : "rust");
 const mode = process.argv[2];
-if (mode === "--list") {
-  for (const c of cases) console.log(`${c.handback ? "back" : "rust"}  ${c.name}`);
+/**
+ * The groups the cases fall into, by the start of their names ("search
+ * time: "): each name contains its own group's and no other, so that the
+ * parity runner's --filter with each of them in turn runs every case once.
+ */
+function groups() {
+  const starts = [...new Set(cases.map((c) => c.name.slice(0, c.name.indexOf(": ") + 2)))];
+  for (const c of cases) {
+    const holding = starts.filter((start) => c.name.includes(start));
+    if (holding.length !== 1) throw new Error(`${c.name}: in ${holding.length} groups`);
+  }
+  return starts;
+}
+groups();
+if (mode === "--groups") {
+  for (const start of groups()) console.log(start);
+} else if (mode === "--list") {
+  console.log("linux darwin win32");
+  for (const c of cases) console.log(`${["linux", "darwin", "win32"].map((system) => on(c, system).padEnd(4)).join(" ")}  ${c.name}`);
 } else if (mode === "--check") {
   const stale = [...files].filter(([file, content]) => !fs.existsSync(file) || fs.readFileSync(file, "utf8") !== content).map(([file]) => path.relative(process.cwd(), file));
   const extra = fs.existsSync(DB_DIR) ? fs.readdirSync(DB_DIR).filter((name) => !files.has(path.join(DB_DIR, name))) : [];
@@ -1006,5 +1099,8 @@ if (mode === "--list") {
   fs.mkdirSync(DB_DIR, { recursive: true });
   for (const [file, content] of files) fs.writeFileSync(file, content);
 }
-const native = cases.filter((c) => !c.handback).length;
-console.error(`${cases.length} cases: ${native} for Rust, ${cases.length - native} handed back`);
+const count = (system, who) => cases.filter((c) => on(c, system) === who).length;
+console.error(
+  `${cases.length} cases; ` +
+    ["linux", "darwin", "win32"].map((system) => `${system}: ${count(system, "rust")} for Rust, ${count(system, "back")} handed back, ${count(system, "skip")} skipped`).join("; "),
+);

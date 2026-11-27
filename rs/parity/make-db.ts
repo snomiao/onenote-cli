@@ -53,6 +53,7 @@ if (!source || !root || (wal !== undefined && wal !== "empty" && wal !== "pendin
 }
 const dir = path.join(root, ".onenote");
 const file = path.join(dir, "search.db");
+const killedHere = path.join(root, ".make-db-killed");
 
 type Cell = string | number | null | { integer: number } | { real: number } | { blob: string } | { tag: string; text: string }[];
 type Row = Record<string, Cell | undefined>;
@@ -116,7 +117,12 @@ function write() {
     for (const row of rows) insert.run(...COLUMNS.map((column) => cell(row[column])));
     db.run("INSERT INTO pages_fts(rowid, title, body) SELECT id, title, body FROM pages");
   })();
-  if (wal === "pending") process.kill(process.pid, "SIGKILL");
+  if (wal === "pending") {
+    // Windows has no signals: there the parent sees exit code 1, and this
+    // file says that it was this and not a failure.
+    fs.writeFileSync(killedHere, "");
+    process.kill(process.pid, "SIGKILL");
+  }
   if (wal === "empty") {
     // As src/cache.ts does at the end of a sync: `insert` is still open, so
     // the database is only really closed when the process ends.
@@ -136,7 +142,8 @@ if (isChild) {
     stdio: ["ignore", "inherit", "inherit"],
     env: process.env,
   });
-  const killed = wal === "pending" && child.signalCode === "SIGKILL";
+  const killed = wal === "pending" && (child.signalCode === "SIGKILL" || (process.platform === "win32" && fs.existsSync(killedHere)));
+  fs.rmSync(killedHere, { force: true });
   if (!killed && child.exitCode !== 0) process.exit(child.exitCode ?? 1);
   if (!wal) for (const ext of ["-shm", "-wal"]) fs.rmSync(file + ext, { force: true });
   if (mtime) {
