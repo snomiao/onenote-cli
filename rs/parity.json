@@ -2,6 +2,12 @@
   "env": {
     "ONENOTE_CLI_PACKAGE_ROOT": "<HOME>/pkg"
   },
+  "normalize": [
+    [
+      "\r\r\n",
+      "\r\n"
+    ]
+  ],
   "cases": [
     {
       "name": "search: one word",

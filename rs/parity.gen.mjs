@@ -1066,7 +1066,20 @@ add("search state: a package directory that is a link to one with ? in its name"
 
 // Every case runs in a package directory of its own, inside its HOME (which
 // is where a global install puts a package, too).
-const spec = { env: { ONENOTE_CLI_PACKAGE_ROOT: "<HOME>/pkg" }, cases };
+//
+// The one rule for every case. On a macOS terminal the TypeScript's output
+// now and then has CR CR LF where a line ends, under bun 1.4.4 and 1.4.5
+// alike, so that it differs from itself: 12 such line ends in 11 of 1,362
+// of its outputs, 11 of them in the 238 outputs of the `search ties: ` cases
+// (up to 150 lines each) and one in a case of 41 lines; in the binary's
+// 1,272 outputs, none (rs/parity/terminal.py in front of both, on macOS
+// 27.0.1 with other work running). On a terminal the two look the same. The
+// program itself never puts a CR before a line end (no case's output has
+// one, on pipes or on a Linux terminal), so the rule takes out only that
+// second CR. What it cannot tell apart: a CR LF that a port writes only on
+// a terminal where the TypeScript writes LF; on pipes the plain run
+// compares every CR.
+const spec = { env: { ONENOTE_CLI_PACKAGE_ROOT: "<HOME>/pkg" }, normalize: [["\r\r\n", "\r\n"]], cases };
 const files = new Map([[path.join(HERE, "parity.json"), `${JSON.stringify(spec, null, 2)}\n`]]);
 for (const [name, rows] of Object.entries(DBS)) files.set(path.join(DB_DIR, `${name}.json`), `${JSON.stringify(rows, null, 1)}\n`);
 
