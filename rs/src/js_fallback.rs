@@ -12,7 +12,10 @@
 //! on Windows the runtimes are those the package managers' shims start: the
 //! one the `#!` line names and no other, but bun after node, so an entry
 //! whose line names bun never goes to node; a missing runtime is named, with
-//! exit code 1.)
+//! exit code 1. And on Windows a runtime found as an .exe is started by the
+//! name the `#!` line gives, as the shims start it, where Windows finds the
+//! same file by that name, so that it sees `bun` as its argv[0], not the
+//! path.)
 //!
 //! For the time when the Rust binary is already the command users run but some
 //! commands still exist only in the package's JavaScript. The binary handles
@@ -207,7 +210,8 @@ pub fn run(entry: &str) -> ! {
                 continue;
             };
             let words: Vec<OsString> = runtime[1..].iter().map(OsString::from).collect();
-            match command(program.as_os_str(), &words).status() {
+            let start_as = start_name(&runtime[0], &program, &windows_first_dirs(), |file| file.is_file());
+            match command(&start_as, &words).status() {
                 Ok(status) => std::process::exit(status.code().unwrap_or(1)),
                 // Rust refuses to start a batch file (bun.cmd) with an
                 // argument that cmd.exe would not hand over unchanged.
@@ -667,6 +671,52 @@ fn find_program(name: &str, dirs: impl IntoIterator<Item = PathBuf>, pathext: &s
     None
 }
 
+/// What to start `program`, the file `find_program` found for `name`, as: the
+/// runtime gets it as its argv[0], and bun and node print that (bun's hint
+/// "Use `bun --trace-warnings ...` to show where the warning was created",
+/// process.argv0). npm's command shim starts `bun` by that name, as the `#!`
+/// line gives it, and so does this wherever Windows, looking the name up
+/// itself, finds that same file. Rust looks a name without a path up in
+/// `first` (the directory of this binary, then the system and Windows
+/// directories: see `windows_first_dirs`), then in PATH, adding `.exe`;
+/// `find_program` found no `name` in the directories of PATH before
+/// `program`'s. Otherwise, and for a batch file, the path.
+#[allow(dead_code)] // used on Windows, tested everywhere
+fn start_name(name: &str, program: &std::path::Path, first: &[PathBuf], is_file: impl Fn(&std::path::Path) -> bool) -> OsString {
+    let plain = !name.is_empty() && !name.contains(['/', '\\', '.', ':']);
+    let exe = format!("{name}.exe");
+    let full = program.to_string_lossy();
+    // `<name>.exe`, in any letters, whichever separator the path uses.
+    let is_name_exe = full.rsplit(['/', '\\']).next().is_some_and(|last| last.eq_ignore_ascii_case(&exe));
+    let same = |file: &std::path::Path| file.to_string_lossy().replace('/', "\\").eq_ignore_ascii_case(&full.replace('/', "\\"));
+    let elsewhere = first.iter().map(|dir| dir.join(&exe)).any(|file| is_file(&file) && !same(&file));
+    if plain && is_name_exe && !elsewhere {
+        OsString::from(name)
+    } else {
+        program.as_os_str().to_owned()
+    }
+}
+
+/// The directories Rust looks a program up in before PATH on Windows: that of
+/// this binary, the system directory and the Windows directory.
+#[cfg(windows)]
+fn windows_first_dirs() -> Vec<PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    extern "system" {
+        fn GetSystemDirectoryW(buffer: *mut u16, size: u32) -> u32;
+        fn GetWindowsDirectoryW(buffer: *mut u16, size: u32) -> u32;
+    }
+    let mut dirs: Vec<PathBuf> = std::env::current_exe().ok().and_then(|exe| exe.parent().map(PathBuf::from)).into_iter().collect();
+    for get in [GetSystemDirectoryW as unsafe extern "system" fn(*mut u16, u32) -> u32, GetWindowsDirectoryW] {
+        let mut buffer = [0u16; 1024];
+        let n = unsafe { get(buffer.as_mut_ptr(), buffer.len() as u32) } as usize;
+        if n > 0 && n < buffer.len() {
+            dirs.push(PathBuf::from(OsString::from_wide(&buffer[..n])));
+        }
+    }
+    dirs
+}
+
 /// Whether Rust starts `program` through cmd.exe, as it does a `.bat` or a
 /// `.cmd` file.
 #[allow(dead_code)] // used on Windows, tested everywhere
@@ -785,6 +835,27 @@ mod tests {
         assert_eq!(found.file_name().and_then(|f| f.to_str()), Some("bun.cmd"));
         assert!(is_batch_file(std::path::Path::new("C:/npm/bun.CMD")) && is_batch_file(std::path::Path::new("x.bat")));
         assert!(!is_batch_file(std::path::Path::new("C:/bun/bun.exe")));
+    }
+
+    /// On Windows a runtime found as an .exe is started by its name, as the
+    /// shims start it, where Windows looks that name up to the same file.
+    #[test]
+    fn a_runtime_is_started_by_its_name_where_that_finds_the_same_file() {
+        let files = ["c:/bun/bun.exe", "c:/npm/bun.cmd", "c:/app/node.exe", "c:/node/node.exe"];
+        let spelt = |file: &std::path::Path| file.to_string_lossy().replace('\\', "/").to_lowercase();
+        let is_file = |file: &std::path::Path| files.iter().any(|f| *f == spelt(file));
+        let first = [PathBuf::from("C:/app"), PathBuf::from("C:/Windows/System32"), PathBuf::from("C:/Windows")];
+        let start = |name: &str, program: &str| start_name(name, std::path::Path::new(program), &first, is_file).to_string_lossy().into_owned();
+        assert_eq!(start("bun", "C:/bun/bun.exe"), "bun");
+        assert_eq!(start("bun", "C:\\BUN\\Bun.EXE"), "bun", "in other letters and separators it is the same file");
+        // A batch file is started as a path (Rust runs it through cmd.exe).
+        assert_eq!(start("bun", "C:/npm/bun.cmd"), "C:/npm/bun.cmd");
+        // Windows would find another node.exe first, in this binary's directory.
+        assert_eq!(start("node", "C:/node/node.exe"), "C:/node/node.exe");
+        assert_eq!(start("node", "C:/app/node.exe"), "node");
+        // A name with an extension or a path is started as the path found.
+        assert_eq!(start("bun.exe", "C:/bun/bun.exe"), "C:/bun/bun.exe");
+        assert_eq!(start("tools/bun", "C:/bun/bun.exe"), "C:/bun/bun.exe");
     }
 
     /// As the package managers' shims read the `#!` line, on Windows.
