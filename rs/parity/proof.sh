@@ -7,8 +7,10 @@
 # CI workflow runs this on each of the three, against the binary it has just
 # built for that system ($RUSTIFY_PLATFORM names the system; without it,
 # `uname` does). First rs/parity.json is checked to be what rs/parity.gen.mjs
-# writes; then these run side by side (the first alone takes six minutes on
-# Linux, and the CI job has thirty for all of them):
+# writes, and rs/src/unicode.rs, the lower case of every code point the
+# binary answers from, to be what this bun says (rs/unicode.gen.mjs); then
+# these run side by side (the first alone takes six minutes on Linux, and
+# the CI job has thirty for all of them):
 #
 #   plain     every case, TypeScript against the binary
 #   terminal  the same with a pseudo-terminal as standard input, output and
@@ -19,9 +21,11 @@
 #             JavaScript; then the same on a pseudo-terminal
 #   zones     `cargo test` in rs/: the unit tests, among them the one that
 #             compares every time zone the binary reads with the runtime's
-#             own time zone database, for 1970 to 2099 (rs/src/time.rs).
-#             This one builds the crate again, from the same sources and
-#             Cargo.lock; it does not run the binary named above.
+#             own time zone database, for 1970 to 2099 (rs/src/time.rs), and
+#             the one that holds the binary's lower case of every code point
+#             against the runtime's (rs/src/js.rs). This one builds the crate
+#             again, from the same sources and Cargo.lock, with the toolchain
+#             at hand; it does not run the binary named above.
 #
 # On Windows, where this runs in Git Bash:
 #   - There is no pseudo-terminal (python's pty is for Linux and macOS, and
@@ -72,6 +76,7 @@ case "$platform" in
 esac
 
 node rs/parity.gen.mjs --check || exit 1
+bun rs/unicode.gen.mjs --check || exit 1
 
 # In $TMPDIR, which macOS's mktemp passes over without a template.
 logs=$(mktemp -d "${TMPDIR:-/tmp}/onenote-proof.XXXXXX")

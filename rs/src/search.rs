@@ -176,8 +176,9 @@ fn ascii_ratio(line: &[u16]) -> f64 {
 }
 
 /// `cleanSnippet(raw, query)` in src/cache.ts: the line of the body that
-/// holds the query, cut to thirty characters either side.
-fn excerpt(raw: &[u16], query: &[u16]) -> Vec<u16> {
+/// holds the query, cut to thirty characters either side. `HandBack` where
+/// the lower case of the query or of a line is not certain.
+fn excerpt(raw: &[u16], query: &[u16]) -> Result<Vec<u16>, HandBack> {
     // raw.replace(/<[^>]{0,300}>/g, " ")
     let mut stripped = Vec::with_capacity(raw.len());
     let mut at = 0;
@@ -202,22 +203,24 @@ fn excerpt(raw: &[u16], query: &[u16]) -> Vec<u16> {
             *unit = 0x20;
         }
     }
-    let lower_query = to_lower_case(query);
-    let matching: Vec<Vec<u16>> = js::lines(&stripped)
-        .map(squeeze)
-        .filter(|line| !line.is_empty() && index_of(&to_lower_case(line), &lower_query).is_some())
-        .collect();
+    let lower_query = to_lower_case(query).ok_or(HandBack)?;
+    let mut matching: Vec<Vec<u16>> = Vec::new();
+    for line in js::lines(&stripped).map(squeeze) {
+        if !line.is_empty() && index_of(&to_lower_case(&line).ok_or(HandBack)?, &lower_query).is_some() {
+            matching.push(line);
+        }
+    }
     // matchingLines.sort((a, b) => asciiRatio(b) - asciiRatio(a))[0]: the
     // first of the lines with the highest share of ASCII.
     let Some(best) = matching.iter().reduce(|best, line| if ascii_ratio(line) > ascii_ratio(best) { line } else { best }) else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
     if ascii_ratio(best) < 0.15 {
-        return units("[binary content, no clean preview]");
+        return Ok(units("[binary content, no clean preview]"));
     }
     // The position is found in the lower-cased line and used on the line
     // itself, as in the TypeScript, although the two can differ in length.
-    let found = index_of(&to_lower_case(best), &lower_query).unwrap_or(0);
+    let found = index_of(&to_lower_case(best).ok_or(HandBack)?, &lower_query).unwrap_or(0);
     let start = found.saturating_sub(30);
     let end = (found + query.len() + 30).min(best.len());
     let mut out = Vec::new();
@@ -228,7 +231,7 @@ fn excerpt(raw: &[u16], query: &[u16]) -> Vec<u16> {
     if end < best.len() {
         out.extend(units("..."));
     }
-    out
+    Ok(out)
 }
 
 /// A TEXT column. JavaScript would also be handed numbers and blobs, and
@@ -380,7 +383,7 @@ fn search_index(file: &Path, request: &Request<'_>) -> Result<Vec<Page>, HandBac
             found.push(Page {
                 title: units(title),
                 body: if fts {
-                    excerpt(&body, &parsed.fts_query)
+                    excerpt(&body, &parsed.fts_query)?
                 } else {
                     // r.body.split("\n")[0]
                     body.split(|&u| u == 0x0A).next().unwrap_or_default().to_vec()
@@ -514,13 +517,14 @@ impl Renderer<'_> {
         page.tag_lines.iter().filter(wanted).collect()
     }
 
-    /// `renderPageBody(r, indent)`
-    fn page_body(&mut self, page: &Page, indent: &str) {
+    /// `renderPageBody(r, indent)`. `HandBack` where the lower case of the
+    /// body is not certain.
+    fn page_body(&mut self, page: &Page, indent: &str) -> Result<(), HandBack> {
         let indent = units(indent);
         let matching = self.matching_lines(page);
         let body = display_body(&page.body);
         let query_length = self.parsed.fts_query.len();
-        let found = if self.lower_query.is_empty() { None } else { index_of(&to_lower_case(&body), &self.lower_query) };
+        let found = if self.lower_query.is_empty() { None } else { index_of(&to_lower_case(&body).ok_or(HandBack)?, &self.lower_query) };
         if let Some(found) = found {
             let start = found.saturating_sub(40);
             let end = (found + query_length + 80).min(body.len());
@@ -568,6 +572,7 @@ impl Renderer<'_> {
                 self.out.line(&[&indent, snippet]);
             }
         }
+        Ok(())
     }
 
     /// A page's title, as a link when the page has an address.
@@ -702,7 +707,7 @@ pub fn run(args: &Args, package_root: &Path, tty: bool) -> Result<String, HandBa
     let mut renderer = Renderer {
         paint,
         parsed: &parsed,
-        lower_query: to_lower_case(&parsed.fts_query),
+        lower_query: to_lower_case(&parsed.fts_query).ok_or(HandBack)?,
         tag_prefix,
         max_lines: args.max_lines.unwrap_or(5) as usize,
         out: Output { text: String::new() },
@@ -735,7 +740,7 @@ pub fn run(args: &Args, package_root: &Path, tty: bool) -> Result<String, HandBa
             let account = page.account.as_deref().unwrap_or(&local);
             by_account.entry(account).entry(&page.notebook).entry(&page.section).push(page);
         }
-        let render_notebooks = |renderer: &mut Renderer, notebooks: &Notebooks, notebook_indent: &str, page_indent: &str, body_indent: &str| {
+        let render_notebooks = |renderer: &mut Renderer, notebooks: &Notebooks, notebook_indent: &str, page_indent: &str, body_indent: &str| -> Result<(), HandBack> {
             for (notebook, sections) in &notebooks.entries {
                 let name = renderer.paint.bold(notebook);
                 renderer.out.line(&[&units(notebook_indent), &name]);
@@ -745,10 +750,11 @@ pub fn run(args: &Args, package_root: &Path, tty: bool) -> Result<String, HandBa
                     for page in pages {
                         let title = renderer.title(page, &renderer.paint.bold(&page.title));
                         renderer.out.line(&[&units(page_indent), &title]);
-                        renderer.page_body(page, body_indent);
+                        renderer.page_body(page, body_indent)?;
                     }
                 }
             }
+            Ok(())
         };
         if show_accounts {
             for (account, notebooks) in &by_account.entries {
@@ -758,7 +764,7 @@ pub fn run(args: &Args, package_root: &Path, tty: bool) -> Result<String, HandBa
                 let heading = renderer.paint.bold(&renderer.paint.cyan(&heading));
                 let pages = renderer.paint.dim(&units(&format!("  ({total} page{})", if total == 1 { "" } else { "s" })));
                 renderer.out.line(&[&heading, &pages]);
-                render_notebooks(&mut renderer, notebooks, "  ", "      ", "        ");
+                render_notebooks(&mut renderer, notebooks, "  ", "      ", "        ")?;
                 renderer.out.line(&[]);
             }
         } else {
@@ -771,7 +777,7 @@ pub fn run(args: &Args, package_root: &Path, tty: bool) -> Result<String, HandBa
                     }
                 }
             }
-            render_notebooks(&mut renderer, &merged, "", "    ", "      ");
+            render_notebooks(&mut renderer, &merged, "", "    ", "      ")?;
         }
     } else if args.compact {
         // One line per page: [count] title — section | notebook [date]
@@ -818,7 +824,7 @@ pub fn run(args: &Args, package_root: &Path, tty: bool) -> Result<String, HandBa
             let title = renderer.title(page, &paint.bold(&paint.cyan(&page.title)));
             let date = date(page)?.map(|date| paint.dim(&units(&date))).unwrap_or_default();
             renderer.out.line(&[&units("  "), &title, &date]);
-            renderer.page_body(page, "    ");
+            renderer.page_body(page, "    ")?;
         }
     }
 
@@ -925,7 +931,7 @@ mod tests {
     }
 
     fn cut(raw: &str, query: &str) -> String {
-        text(&excerpt(&units(raw), &units(query)))
+        text(&excerpt(&units(raw), &units(query)).unwrap())
     }
 
     // The parity cases compare whole searches; this pins the piece.

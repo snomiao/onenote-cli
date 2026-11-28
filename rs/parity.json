@@ -3958,6 +3958,126 @@
       }
     },
     {
+      "name": "search text: capital sigmas beside an apostrophe, a combining mark and a quotation mark",
+      "args": [
+        "search",
+        "needle21"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/lower.json\" --mtime 2026-03-08T09:05:07Z --wal empty"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "node \"<REPO>/rs/parity/files.mjs\" --mtime \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli"
+      ],
+      "handback": {
+        "win32": "the search is not ported for Windows: bun's SQLite, time zone data and console there were never compared"
+      }
+    },
+    {
+      "name": "search text: a capital sigma behind a combining mark ends a word",
+      "args": [
+        "search",
+        "ός"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/lower.json\" --mtime 2026-03-08T09:05:07Z --wal empty"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "node \"<REPO>/rs/parity/files.mjs\" --mtime \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli"
+      ],
+      "handback": {
+        "win32": "the search is not ported for Windows: bun's SQLite, time zone data and console there were never compared"
+      }
+    },
+    {
+      "name": "search text: a capital sigma before a quotation mark and a letter does not",
+      "args": [
+        "search",
+        "ασ’α"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/lower.json\" --mtime 2026-03-08T09:05:07Z --wal empty"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "node \"<REPO>/rs/parity/files.mjs\" --mtime \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli"
+      ],
+      "handback": {
+        "win32": "the search is not ported for Windows: bun's SQLite, time zone data and console there were never compared"
+      }
+    },
+    {
+      "name": "search text: Glagolitic capitals, whose lower case came with Unicode 14",
+      "args": [
+        "search",
+        "needle22"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/lower.json\" --mtime 2026-03-08T09:05:07Z --wal empty"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "node \"<REPO>/rs/parity/files.mjs\" --mtime \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli"
+      ],
+      "handback": "the lower case of a character on the page may be another in another runtime's Unicode (rs/src/js.rs lowercase_unsure, final_sigma)"
+    },
+    {
+      "name": "search text: a code point Unicode 17 does not assign",
+      "args": [
+        "search",
+        "needle23"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/lower.json\" --mtime 2026-03-08T09:05:07Z --wal empty"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "node \"<REPO>/rs/parity/files.mjs\" --mtime \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli"
+      ],
+      "handback": "the lower case of a character on the page may be another in another runtime's Unicode (rs/src/js.rs lowercase_unsure, final_sigma)"
+    },
+    {
+      "name": "search text: a capital sigma beside a letter that changed in Unicode 17",
+      "args": [
+        "search",
+        "needle24"
+      ],
+      "env": {
+        "TZ": "UTC"
+      },
+      "setup": [
+        "sh \"<REPO>/rs/parity/package.sh\"",
+        "bun \"<REPO>/rs/parity/make-db.ts\" \"<REPO>/rs/parity/db/lower.json\" --mtime 2026-03-08T09:05:07Z --wal empty"
+      ],
+      "after": [
+        "ls -A <CWD> <HOME>",
+        "node \"<REPO>/rs/parity/files.mjs\" --mtime \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote/search.db \"$ONENOTE_CLI_PACKAGE_ROOT\"/.onenote <HOME>/.onenote-cli"
+      ],
+      "handback": "the lower case of a character on the page may be another in another runtime's Unicode (rs/src/js.rs lowercase_unsure, final_sigma)"
+    },
+    {
       "name": "search time: Tokyo",
       "args": [
         "search",

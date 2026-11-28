@@ -62,9 +62,14 @@ jobs:
       #     builds the crate once more with the runner's own Rust, from the
       #     same sources and Cargo.lock. It fails when that database or the
       #     crate's has moved and the two no longer agree where the binary
-      #     answers, and prints the lines to add to rs/src/time.rs. On
-      #     Windows, where nothing the binary answers reads a time zone, it
-      #     runs the unit tests of what is compiled there.
+      #     answers, and prints the lines to add to rs/src/time.rs. With it
+      #     runs the test that holds the binary's lower case of every code
+      #     point against this bun's toLowerCase (rs/src/js.rs), whatever
+      #     Unicode the runner's Rust has: the binary answers from
+      #     rs/src/unicode.rs, which proof.sh first checks to be what this
+      #     bun says (rs/unicode.gen.mjs --check). On Windows, where nothing
+      #     the binary answers reads a time zone or lower-cases, it runs the
+      #     unit tests of what is compiled there.
       parity: >-
         bun install --frozen-lockfile
         && sh rs/parity/proof.sh "$RUSTIFY_PARITY" "$RUSTIFY_BIN_DIR/onenote-cli"

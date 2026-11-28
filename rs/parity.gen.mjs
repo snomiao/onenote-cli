@@ -303,7 +303,19 @@ const odd = {
   empty: [],
 };
 
-const DBS = { notes, bulk, ages, text, ...Object.fromEntries(Object.entries(odd).map(([name, rows]) => [`odd-${name}`, rows])) };
+/**
+ * Lower case the binary answers from rs/src/unicode.rs, and where it is not
+ * certain of the runtime's (rs/src/js.rs lowercase_unsure, final_sigma).
+ * Apart from `text`, whose every-page cases would go back with these.
+ */
+const lower = [
+  page({ notebook: "Lower", section: "Sure", title: "Sigma passed over", body: "ΟΔΟΣ' ΚΑΙ Ο\u0301Σ ΑΣ\u2019Α needle21 sure" }),
+  page({ notebook: "Lower", section: "Unsure", title: "Glagolitic", body: "\u2C00\u2C01\u2C02 needle22 glagolitic capitals" }),
+  page({ notebook: "Lower", section: "Unsure", title: "Unassigned", body: "\u0378 needle23 a code point Unicode 17 leaves free" }),
+  page({ notebook: "Lower", section: "Unsure", title: "Sigma beside a changed letter", body: "ΑΣ\u0295 needle24 pharyngeal" }),
+];
+
+const DBS = { notes, bulk, ages, text, lower, ...Object.fromEntries(Object.entries(odd).map(([name, rows]) => [`odd-${name}`, rows])) };
 
 /**
  * Rows this file does not write: rs/parity/rows/<name>.json, from the
@@ -595,6 +607,17 @@ add("search text: a hit far into a long line", search("needle15"), TEXT);
 add("search text: every page, by first line", search('""'), TEXT);
 add("search text: every page, compact", search('""', "-c"), TEXT);
 add("search text: every page, grouped", search('""', "-g"), TEXT);
+
+// Lower case comes from a table recorded from bun (rs/unicode.gen.mjs), and
+// what the runtime may lower-case otherwise goes back.
+const LOWER = { db: "lower" };
+const UNSURE = "the lower case of a character on the page may be another in another runtime's Unicode (rs/src/js.rs lowercase_unsure, final_sigma)";
+add("search text: capital sigmas beside an apostrophe, a combining mark and a quotation mark", search("needle21"), LOWER);
+add("search text: a capital sigma behind a combining mark ends a word", search("ο\u0301ς"), LOWER);
+add("search text: a capital sigma before a quotation mark and a letter does not", search("ασ\u2019α"), LOWER);
+back("search text: Glagolitic capitals, whose lower case came with Unicode 14", UNSURE, search("needle22"), LOWER);
+back("search text: a code point Unicode 17 does not assign", UNSURE, search("needle23"), LOWER);
+back("search text: a capital sigma beside a letter that changed in Unicode 17", UNSURE, search("needle24"), LOWER);
 
 // ── search: the time in the last line ────────────────────────────────────────
 

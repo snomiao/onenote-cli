@@ -18,6 +18,8 @@ mod query;
 mod search;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 mod time;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+mod unicode;
 
 use std::io::{IsTerminal, Write};
 
