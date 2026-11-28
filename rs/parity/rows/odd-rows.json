@@ -1,0 +1,276 @@
+[
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "  Padded title  ",
+  "body": "zeta padded title body here"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Multi\nline title",
+  "body": "zeta multi line body text here"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Tab\ttitle",
+  "body": "zeta tab"
+ },
+ {
+  "notebook": "",
+  "section": "",
+  "title": "Empty names",
+  "body": "zeta empty names here in body"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Space url",
+  "body": "zeta space url",
+  "web_url": " "
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Many fraction digits",
+  "body": "zeta",
+  "last_modified": "2026-03-01T23:59:59.999999999999Z"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Offset date",
+  "body": "zeta",
+  "last_modified": "2026-12-31T23:30:00-23:59"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Minus zero offset",
+  "body": "zeta",
+  "last_modified": "2026-06-30T23:30:00-00:00"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Empty date",
+  "body": "zeta",
+  "last_modified": ""
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Acct space",
+  "body": "zeta",
+  "account": " "
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Tagged odd",
+  "body": "zeta",
+  "has_todo": 1,
+  "has_done": 1,
+  "tags": "|to-do|star|",
+  "tag_lines": [
+   {
+    "tag": "to-do",
+    "text": "line\nbreak"
+   },
+   {
+    "tag": "to-do",
+    "text": ""
+   },
+   {
+    "tag": "star",
+    "text": "\ud83d\ude00 emoji text"
+   },
+   {
+    "tag": "unknown-tag",
+    "text": "x"
+   },
+   {
+    "tag": "to-do",
+    "text": "dup",
+    "extra": 1
+   },
+   {
+    "tag": "to-do:completed",
+    "text": "done \u00e9\u4e2d"
+   }
+  ]
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Tag lines empty list",
+  "body": "zeta",
+  "has_todo": 1,
+  "tag_lines": "[]"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Tag lines empty string",
+  "body": "zeta",
+  "has_todo": 1,
+  "tag_lines": ""
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Tag lines spaces",
+  "body": "zeta",
+  "has_todo": 1,
+  "tag_lines": " [ ] "
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Tag lines dup keys",
+  "body": "zeta",
+  "has_todo": 1,
+  "tag_lines": "[{\"tag\":\"to-do\",\"text\":\"first\",\"text\":\"second\"}]"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Tag lines escapes",
+  "body": "zeta",
+  "has_todo": 1,
+  "tag_lines": "[{\"tag\":\"to-do\",\"text\":\"a\\u00e9\\ud83d\\ude00\\/b\\tc\"}]"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "has_todo two",
+  "body": "zeta",
+  "has_todo": 2
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "has_todo text",
+  "body": "zeta",
+  "has_todo": "1"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Body CR only",
+  "body": "first\rzeta second\rthird"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Body with tag-like",
+  "body": "a < b and c > d zeta &amp;lt; &nbsp;x"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "Long body no spaces",
+  "body": "zeta xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec",
+  "title": "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+  "body": "zeta long title"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "Zeta in title only",
+  "body": "nothing"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "ZETA shout",
+  "body": "ZETA ZETA zeta Zeta"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "Kelvin K and long s",
+  "body": "zeta \u212aelvin \u017ftar \u0130stanbul I\u0307stanbul"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "Body nbsp lines",
+  "body": "zeta\u00a0one\u2028two\u2029three\u0085four"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "Snippet 19 chars",
+  "body": "1234567890123456789",
+  "tags": "|star|"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "Snippet 20 chars",
+  "body": "12345678901234567890",
+  "tags": "|star|"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "Snippet 121 chars",
+  "body": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "tags": "|star|"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "Snippet astral cut",
+  "body": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\ud83d\ude00 tail",
+  "tags": "|star|"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": ".a1",
+  "body": "zeta attachment like"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": ".abcdef",
+  "body": "zeta six letters after dot"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": ".\u00e9\u00e9\u00e9",
+  "body": "zeta accents after dot"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "\u00e9\u00e8\u00ea",
+  "body": "zeta latin1 title"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "\u0394\u03b5\u03bb\u03c4\u03b1 abc",
+  "body": "zeta greek title with latin"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "\ud83d\ude00\ud83d\ude00 ab",
+  "body": "zeta emoji title"
+ },
+ {
+  "notebook": "NB",
+  "section": "Sec2",
+  "title": "\ud83d\ude00 abc",
+  "body": "zeta emoji title two"
+ }
+]

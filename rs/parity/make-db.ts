@@ -1,0 +1,196 @@
+#!/usr/bin/env bun
+// Builds the search index a parity case starts from, the way `onenote sync`
+// leaves it: <package root>/.onenote/search.db, an SQLite file with a `pages`
+// table and a contentless FTS5 index over it.
+//
+//   bun rs/parity/make-db.ts <pages.json> [--mtime <ISO time>] [--wal empty|pending|sync]
+//
+// The package root is $ONENOTE_CLI_PACKAGE_ROOT. The schema is the one in
+// src/cache.ts (openSearchDb), and the rows go in the way
+// upsertSectionToIndex puts them in. pages.json is an array of rows, each
+// with the columns it wants to set; a column left out is NULL. A value can
+// be given a storage class other than TEXT as { "integer": 42 } or
+// { "blob": "<hex>" }, for rows no sync would write.
+//
+// --mtime sets the file's modification time, which `onenote search` prints
+// as "last synced".
+//
+// --wal says what is left beside the file:
+//   (not given)  nothing: one file with everything in it, as a database
+//                closed cleanly leaves it;
+//   empty        search.db-wal, empty, and search.db-shm. That is what a
+//                finished `onenote sync` leaves on macOS, whose SQLite keeps
+//                both files when a database is closed, and on Linux under bun
+//                1.4.4 and older, which left the database the sync had not
+//                really closed open until the process ended. Made the same way
+//                under every bun: the write-ahead log is checkpointed into
+//                the file and cut to nothing, and the process that wrote it
+//                is then killed, so that nothing closes the database;
+//   pending      a search.db-wal that still holds the rows, as after a sync
+//                that was killed;
+//   sync         whatever this bun leaves when a program ends as a sync
+//                does: src/cache.ts closes the database with statements
+//                still open, and the process ends. Under bun 1.4.5 on Linux
+//                that is the file alone (bun 1.4.5 closes every database when
+//                the process ends, which checkpoints the log and deletes the
+//                two files); on macOS, and under bun 1.4.4 and older, it is
+//                what `empty` makes.
+// For every mode but `sync` this file fails unless the files beside the
+// index are as said, so that a case cannot start from another state than
+// the one it names.
+//
+// The writing happens in a child process, so that this one can set the
+// modification time after the last byte has been written.
+
+import { Database } from "bun:sqlite";
+import fs from "node:fs";
+import path from "node:path";
+
+const args = process.argv.slice(2);
+const option = (name: string): string | undefined => {
+  const at = args.indexOf(name);
+  if (at < 0) return undefined;
+  const [, value] = args.splice(at, 2);
+  return value;
+};
+const flag = (name: string): boolean => {
+  const at = args.indexOf(name);
+  if (at >= 0) args.splice(at, 1);
+  return at >= 0;
+};
+const isChild = flag("--child");
+const mtime = option("--mtime");
+const wal = option("--wal");
+const root = process.env.ONENOTE_CLI_PACKAGE_ROOT;
+const [source] = args;
+if (!source || !root || (wal !== undefined && wal !== "empty" && wal !== "pending" && wal !== "sync")) {
+  console.error("usage: ONENOTE_CLI_PACKAGE_ROOT=<dir> make-db.ts <pages.json> [--mtime <ISO time>] [--wal empty|pending|sync]");
+  process.exit(2);
+}
+const dir = path.join(root, ".onenote");
+const file = path.join(dir, "search.db");
+const killedHere = path.join(root, ".make-db-killed");
+
+type Cell = string | number | null | { integer: number } | { real: number } | { blob: string } | { tag: string; text: string }[];
+type Row = Record<string, Cell | undefined>;
+const COLUMNS = [
+  "section",
+  "notebook",
+  "title",
+  "body",
+  "web_url",
+  "page_guid",
+  "has_todo",
+  "has_done",
+  "tags",
+  "tag_lines",
+  "account",
+  "last_modified",
+];
+
+function cell(value: Cell | undefined): string | number | null | Uint8Array {
+  if (value === undefined || value === null) return null;
+  if (Array.isArray(value)) return JSON.stringify(value);
+  if (typeof value === "object") {
+    if ("integer" in value) return value.integer;
+    if ("real" in value) return value.real;
+    return Uint8Array.from(Buffer.from(value.blob, "hex"));
+  }
+  return value;
+}
+
+function write() {
+  const rows = JSON.parse(fs.readFileSync(source, "utf8")) as Row[];
+  const db = new Database(file, { create: true });
+  db.run("PRAGMA journal_mode=WAL");
+  db.run(`
+    CREATE TABLE IF NOT EXISTS pages (
+      id INTEGER PRIMARY KEY,
+      section TEXT NOT NULL,
+      notebook TEXT NOT NULL,
+      title TEXT,
+      body TEXT,
+      web_url TEXT,
+      page_guid TEXT,
+      has_todo INTEGER DEFAULT NULL,
+      has_done INTEGER DEFAULT NULL,
+      tags TEXT DEFAULT NULL,
+      tag_lines TEXT DEFAULT NULL,
+      account TEXT DEFAULT NULL,
+      last_modified TEXT DEFAULT NULL
+    )
+  `);
+  db.run("CREATE INDEX IF NOT EXISTS pages_section ON pages(section, notebook)");
+  db.run(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
+      title, body,
+      content="",
+      tokenize="unicode61"
+    )
+  `);
+  const insert = db.prepare(`INSERT INTO pages(${COLUMNS.join(", ")}) VALUES (${COLUMNS.map(() => "?").join(", ")})`);
+  db.transaction(() => {
+    for (const row of rows) insert.run(...COLUMNS.map((column) => cell(row[column])));
+    db.run("INSERT INTO pages_fts(rowid, title, body) SELECT id, title, body FROM pages");
+  })();
+  if (wal === "empty") {
+    // Everything into the file, and the log cut to nothing; the kill below
+    // keeps the -shm file and the empty log beside it.
+    const [busy] = Object.values(db.query("PRAGMA wal_checkpoint(TRUNCATE)").get() as Record<string, number>);
+    if (busy !== 0) {
+      console.error("make-db.ts: the write-ahead log could not be checkpointed");
+      process.exit(1);
+    }
+  }
+  if (wal === "pending" || wal === "empty") {
+    // Windows has no signals: there the parent sees exit code 1, and this
+    // file says that it was this and not a failure.
+    fs.writeFileSync(killedHere, "");
+    process.kill(process.pid, "SIGKILL");
+  }
+  if (wal === "sync") {
+    // As src/cache.ts does at the end of a sync: `insert` is still open, and
+    // what happens to the database is up to the runtime when the process ends.
+    db.close();
+    return;
+  }
+  insert.finalize();
+  db.close(true);
+}
+
+/** The size of a file beside the index, or null when there is none. */
+const beside = (ext: string): number | null => {
+  const stat = fs.statSync(file + ext, { throwIfNoEntry: false });
+  return stat?.isFile() ? stat.size : null;
+};
+
+if (isChild) {
+  write();
+} else {
+  fs.mkdirSync(dir, { recursive: true });
+  for (const ext of ["", "-shm", "-wal"]) fs.rmSync(file + ext, { force: true });
+  const child = Bun.spawnSync([process.execPath, import.meta.path, source, "--child", ...(wal ? ["--wal", wal] : [])], {
+    stdio: ["ignore", "inherit", "inherit"],
+    env: process.env,
+  });
+  const killed = (wal === "pending" || wal === "empty") && (child.signalCode === "SIGKILL" || (process.platform === "win32" && fs.existsSync(killedHere)));
+  fs.rmSync(killedHere, { force: true });
+  if (!killed && child.exitCode !== 0) process.exit(child.exitCode ?? 1);
+  // macOS's SQLite keeps both files even when the database is closed cleanly.
+  if (!wal) for (const ext of ["-shm", "-wal"]) fs.rmSync(file + ext, { force: true });
+  const [log, shm] = [beside("-wal"), beside("-shm")];
+  const as = {
+    none: log === null && shm === null,
+    empty: log === 0 && shm !== null,
+    pending: log !== null && log > 0 && shm !== null,
+    sync: true,
+  }[wal ?? "none"];
+  if (!as) {
+    console.error(`make-db.ts: --wal ${wal ?? "(none)"} left search.db-wal ${log === null ? "missing" : `of ${log} bytes`} and search.db-shm ${shm === null ? "missing" : "there"}`);
+    process.exit(1);
+  }
+  if (mtime) {
+    const when = new Date(mtime);
+    fs.utimesSync(file, when, when);
+  }
+}

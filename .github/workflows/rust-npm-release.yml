@@ -1,9 +1,11 @@
-# Builds the Rust `onenote-cli` binary for every platform, packs it together
-# with the TypeScript the package ships, and checks on Linux, macOS and
-# Windows (x64 and arm64) that `bun i -g` / `npm i -g` gives working `onenote`
-# and `onenote-cli` commands.
+# Builds the Rust `onenote-cli` binary for every platform, compares it with
+# the TypeScript on Linux, macOS and Windows, packs it together with the
+# TypeScript the package ships, and checks on Linux, macOS and Windows (x64
+# and arm64) that `bun i -g` / `npm i -g` gives working `onenote` and
+# `onenote-cli` commands.
 #
-# It does not publish. Releases still go through release.yml.
+# It does not publish, and nothing can start it to: there is no publish job
+# and no workflow_call trigger. Releases still go through release.yml.
 #
 # The pipeline lives in https://github.com/snomiao/rustify.
 
@@ -13,7 +15,11 @@ on:
   pull_request:
     paths:
       - "rs/**"
+      # The parity cases compare the binary with the TypeScript, so a change
+      # to either side has to run them.
+      - "src/**"
       - "package.json"
+      - "bun.lock"
       - ".github/workflows/rust-npm-release.yml"
   workflow_dispatch:
     inputs:
@@ -29,11 +35,55 @@ jobs:
       manifest: rs/Cargo.toml
       bins: onenote-cli
       version: ${{ inputs.version }}
-      # Both commands are the same binary, and it hands everything to
-      # src/index.ts, so these go through the TypeScript on every machine.
+      # Both commands are the same binary. --help is yargs's, so these go
+      # through the hand-back to src/index.ts on every machine.
       # (--version is no use as the check: installed with bun, yargs cannot
       # find the package and prints "unknown".)
       smoke: onenote --help
       smoke-expect: List notebooks, sections, or pages
+      # Rust against TypeScript, on the binaries that were just built, on
+      # Linux, macOS and Windows (rs/parity.gen.mjs says what the cases are;
+      # nothing in them reaches Microsoft, and every case that would sync
+      # runs with an empty home, without a token). rs/parity/proof.sh runs,
+      # side by side, in bash (Git Bash on Windows):
+      #   - every case, TypeScript against the binary;
+      #   - the binary alone against a stand-in package, which fails unless
+      #     exactly the cases marked "handback" for this system reach the
+      #     JavaScript (the search is answered on Linux and macOS and handed
+      #     back on Windows; `auth setup` is answered everywhere);
+      #   - the same two with a pseudo-terminal as standard output, where the
+      #     search prints colours and clickable titles (not on Windows, which
+      #     has no pseudo-terminal for python's pty, and where the binary
+      #     hands a search on a console back anyway);
+      #   - `cargo test` in rs/, for the test that compares every time zone
+      #     the binary reads with the time zone database of the bun that is
+      #     installed here (inside bun on Linux; on macOS bun takes the
+      #     system's, so this compares with the runner's macOS). That one
+      #     builds the crate once more with the runner's own Rust, from the
+      #     same sources and Cargo.lock. It fails when that database or the
+      #     crate's has moved and the two no longer agree where the binary
+      #     answers, and prints the lines to add to rs/src/time.rs. With it
+      #     runs the test that holds the binary's lower case of every code
+      #     point against this bun's toLowerCase (rs/src/js.rs), whatever
+      #     Unicode the runner's Rust has: the binary answers from
+      #     rs/src/unicode.rs, which proof.sh first checks to be what this
+      #     bun says (rs/unicode.gen.mjs --check). On Windows, where nothing
+      #     the binary answers reads a time zone or lower-cases, it runs the
+      #     unit tests of what is compiled there.
+      parity: >-
+        bun install --frozen-lockfile
+        && sh rs/parity/proof.sh "$RUSTIFY_PARITY" "$RUSTIFY_BIN_DIR/onenote-cli"
+      parity-platforms: '["linux-x64", "darwin-arm64", "win32-x64"]'
+      # Run once on every platform after installing, each line marked with
+      # who has to answer it. `auth setup` is answered by the binary itself
+      # on every system (it prints the setup guide and needs nothing); it is
+      # the one ported command that can run on a machine with no index.
+      # --help is yargs's, so the binary hands it to the JavaScript.
+      # `onenote search` is not run here on purpose: without an index the
+      # TypeScript starts a sync, and on a machine that is signed in that is
+      # a real one. (It is native on Linux and macOS and handed back on
+      # Windows; the parity job shows that on each.)
       smoke-extra: |
-        onenote-cli --help => List notebooks, sections, or pages
+        [handback] onenote-cli --help => List notebooks, sections, or pages
+        [native] onenote auth setup => === onenote-cli OAuth Setup ===
+        [native] onenote-cli auth setup => onenote auth login

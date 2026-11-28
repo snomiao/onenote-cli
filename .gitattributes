@@ -1,0 +1,7 @@
+# The Rust port's files stay LF in every checkout, also on Windows with
+# core.autocrlf (as GitHub's Windows runners have it):
+# `node rs/parity.gen.mjs --check` compares rs/parity.json and the fixtures
+# byte for byte, the parity job runs rs/parity/*.sh in Git Bash, and the
+# binary compiles rs/src/auth_setup.txt in, so a CR LF checkout would print
+# `onenote auth setup` with CR LF where the TypeScript prints LF.
+rs/** text=auto eol=lf
